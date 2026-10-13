@@ -1,0 +1,10 @@
+node_modules/
+.test-fixtures.json
+.next/
+.env*
+!.env.example
+.pnpm-store/
+coverage/
+*.tsbuildinfo
+test-results/
+playwright-report/
