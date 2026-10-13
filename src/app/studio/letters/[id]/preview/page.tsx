@@ -1,0 +1,54 @@
+import Link from 'next/link';
+import { getLetter } from '@/lib/server/letters';
+import { pageData } from '@/lib/server/pages';
+import { RichText } from '@/components/rich-text';
+export default async function Preview({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const letter = await pageData(() => getLetter(id));
+  return (
+    <main className="py-10">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <Link className="hint underline" href={`/studio/letters/${id}`}>
+          ← Back to editor
+        </Link>
+        <p className="hint">Private preview · saved version</p>
+      </div>
+      <article
+        className={`mx-auto max-w-3xl rounded-2xl border px-6 py-12 sm:px-14 ${letter.templateId === 'rose' ? 'border-rose-200 bg-[#fff2f4]' : 'border-stone-200 bg-white'}`}
+      >
+        <div className="mb-12 text-center">
+          <p className="mb-5 text-3xl text-rose-700" aria-hidden="true">
+            ♡
+          </p>
+          <p className="text-xs uppercase tracking-[.2em] text-rose-700">A letter for you</p>
+          <h1 className="mt-6 break-words text-4xl">
+            {letter.recipientDisplayName
+              ? `Dear ${letter.recipientDisplayName},`
+              : 'To someone special,'}
+          </h1>
+        </div>
+        <RichText document={letter.bodyDoc} />
+        {letter.photos.some((photo) => photo.status === 'ready') && (
+          <section className="mt-12 border-t border-rose-100 pt-8">
+            <h2 className="mb-6 text-center text-2xl">Little moments, kept close</h2>
+            <div className="grid gap-5 sm:grid-cols-2">
+              {letter.photos
+                .filter((photo) => photo.status === 'ready')
+                .map((photo) => (
+                  <figure key={photo.id}>
+                    <img
+                      className="aspect-square w-full rounded-lg object-cover"
+                      alt={photo.altText}
+                      src={`/api/letters/${id}/photos/${photo.id}/media`}
+                    />
+                    <figcaption className="hint mt-3 text-center">{photo.altText}</figcaption>
+                  </figure>
+                ))}
+            </div>
+          </section>
+        )}
+        <p className="serif mt-12 text-center text-xl">With love, always.</p>
+      </article>
+    </main>
+  );
+}
