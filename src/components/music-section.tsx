@@ -4,6 +4,7 @@ import type { Letter } from '@/lib/types';
 import { api, ApiError } from '@/lib/client-api';
 import { MusicPlayer } from './music-player';
 import { AUDIO_HARD_MAX, AUDIO_MAX_SECONDS } from '@/lib/audio-limits';
+import { uploadMusicInChunks } from '@/lib/client-music-upload';
 export function MusicSection({
   letter,
   disabled,
@@ -94,7 +95,7 @@ export function MusicSection({
       )}
       <p className="hint" role="status" aria-live="polite">
         {pending === 'upload'
-          ? 'Uploading and validating your private MP3…'
+          ? feedback || 'Uploading and validating your private MP3…'
           : pending === 'save'
             ? 'Saving music settings…'
             : pending === 'remove'
@@ -106,7 +107,29 @@ export function MusicSection({
                     : 'Private track attached. Enable it, then save music settings for recipients.'
                   : 'No ready soundtrack is enabled.')}
       </p>
-      {letter.audioAsset ? (
+      {letter.audioUpload ? (
+        <div className="space-y-3">
+          <p className="hint">
+            An unfinished private upload is reserved. Cancel it before starting another track.
+            Private cleanup is queued separately.
+          </p>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={disabled}
+            onClick={() =>
+              perform('remove', async () => {
+                applySaved(
+                  await api<Letter>(`${path}/ingests/${letter.audioUpload!.id}`, 'DELETE'),
+                );
+                setFeedback('Pending upload cancelled. Private cleanup is queued.');
+              })
+            }
+          >
+            Cancel pending music upload
+          </button>
+        </div>
+      ) : letter.audioAsset ? (
         <>
           <p className="hint">
             {letter.audioAsset.status === 'ready'
@@ -151,7 +174,7 @@ export function MusicSection({
               data = new FormData(form);
             data.set('expectedVersion', letter.version);
             perform('upload', async () => {
-              applySaved(await api<Letter>(path, 'POST', data));
+              applySaved(await uploadMusicInChunks(path, data, applySaved, setFeedback));
               setSelected(false);
               form.reset();
               setFeedback(

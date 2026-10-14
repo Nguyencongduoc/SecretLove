@@ -15,8 +15,15 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
     headers:
       body instanceof FormData || body === undefined
         ? undefined
-        : { 'Content-Type': 'application/json' },
-    body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body),
+        : body instanceof Blob
+          ? { 'Content-Type': 'application/octet-stream' }
+          : { 'Content-Type': 'application/json' },
+    body:
+      body instanceof FormData || body instanceof Blob
+        ? body
+        : body === undefined
+          ? undefined
+          : JSON.stringify(body),
   });
   let result;
   try {

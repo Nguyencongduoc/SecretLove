@@ -89,6 +89,7 @@ export async function getLetter(id: string): Promise<Letter> {
     { a: user.id, lid: id },
   );
   return {
+    audioUpload: await rpc<Letter['audioUpload']>('sl_ingest_flags', { a: user.id, lid: id }),
     heartCustomization: resolveHeart(row.presentation_config?.heartCustomization),
     sceneText: resolveSceneText(row.scene_text),
     music: resolvedMusic(row.presentation_config),

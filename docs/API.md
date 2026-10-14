@@ -190,3 +190,18 @@ Music configuration wire shape remains V1 with startPolicy=manual for interactio
 PATCH /api/letters/{id}: optional nullable heartCustomization plus existing expectedVersion; strict inner V1 object described in PARTICLE_HEART_SETUP.md. Omitting preserves it; null resets only heart appearance/rings. No generic config writer or new endpoint. Owner/draft/version/Origin/rate checks unchanged. Invalid phrases/presets/unknown keys/oversized payload return existing validation errors; unauthorized creator gets unchanged 404/401 semantics.
 
 Owner Letter DTO now includes resolved heartCustomization; recipient presentation.configuration.heartCustomization is derived only from the authorized content response. Bootstrap/locked page/metadata/dashboard cards omit phrases. Literal text/glyph rendering does not interpret scripts. Music upload/settings/remove preserve customization; heart saves preserve music. Published content stays frozen, republish keeps existing rotation/revocation behavior. Schema/template version and concurrency/access versions remain distinct.
+
+## Prompt 07 — private chunk transport (latest)
+
+Studio now uses these same-origin owner/Origin/rate-authorized endpoints. Private Storage paths and credentials are never returned.
+
+| Endpoint | Request | Result |
+| --- | --- | --- |
+| POST /api/letters/{id}/music/ingests | Strict <=4 KiB JSON: expectedVersion, byteSize, digest (lowercase SHA-256), fileType (audio/mpeg or audio/mp3), extension=mp3, rightsAcknowledged=true | 201 ingest id, candidate assetId, partCount; reserves quota and advances parent version |
+| PUT /api/letters/{id}/music/ingests/{ingestId}/parts/{index} | application/octet-stream; exact expected part size <=1 MiB | 200 stored=true; same part/hash is idempotent; changed part is 422 |
+| POST /api/letters/{id}/music/ingests/{ingestId} | Strict empty JSON <=256 bytes | 201 updated owner Letter only after full manifest, server codec/duration checks and guarded ready attach |
+| DELETE /api/letters/{id}/music/ingests/{ingestId} | No arbitrary path or body fields | Updated owner Letter; pending bytes queued, committed ready asset protected |
+
+One pending ingest/letter, at most sixteen parts, 15-minute expiry, 90-second commit lease, original upload/mutation quotas plus 120 part requests/min/creator. Owner Letter adds audioUpload=null or {id,status,expiresAt}; begin then commit/cancel advances expected version twice. Concurrent/stale/published/incomplete state returns 409; anonymous 401/foreign owner 404; oversize 413; invalid MIME 415; changed manifest/invalid audio 422; upstream failures remain truthful retryable errors. See CHUNK_AUDIO_SETUP.md for private gateways and migration 008.
+
+Existing music preferences/removal and owner/recipient media paths are unchanged. Authorized audio GET now streams upstream bytes with canonical single Range instead of buffering the entire object; GET omits Content-Length, HEAD returns authorized metadata. Every new media request enforces current ownership or letter-bound recipient access. No signed/public/external music URL. The legacy multipart endpoint remains compatible locally but large requests on that endpoint are not certified for Vercel; Studio uses the approved chunks. Actual target compatibility remains NOT TESTED until an explicitly approved protected deployment.

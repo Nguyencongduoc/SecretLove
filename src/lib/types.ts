@@ -13,6 +13,7 @@ export type Letter = {
   sceneText: import('@/lib/validation/scene-text').SceneText;
   music: import('@/lib/validation/music').MusicConfiguration;
   audioAsset: { id: string; status: 'pending' | 'ready'; durationSeconds: number } | null;
+  audioUpload?: { id: string; status: 'collecting' | 'finalizing'; expiresAt: string } | null;
   id: string;
   title: string;
   recipientDisplayName: string | null;

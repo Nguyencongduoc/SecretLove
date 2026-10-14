@@ -56,6 +56,7 @@ export function appOrigin() {
     const url = new URL(origin);
     if (
       url.origin !== origin ||
+      (process.env.VERCEL === '1' && url.protocol !== 'https:') ||
       (url.protocol !== 'https:' &&
         !(url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)))
     )

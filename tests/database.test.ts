@@ -596,6 +596,9 @@ beforeAll(async () => {
   await db.exec(await readFile('supabase/migrations/202610140005_scene_text.sql', 'utf8'));
   await db.exec(await readFile('supabase/migrations/202610140006_particle_heart.sql', 'utf8'));
   await db.exec(await readFile('supabase/migrations/202610140007_recovery_single_use.sql', 'utf8'));
+  await db.exec(
+    await readFile('supabase/migrations/202610150008_private_audio_ingests.sql', 'utf8'),
+  );
   expect(
     (
       await db.query('select presentation_config,version from public.letters where id=$1', [
@@ -610,6 +613,222 @@ beforeAll(async () => {
       ])
     ).rows[0].scene_text,
   ).toBeNull();
+});
+describe('private audio chunk ingests', () => {
+  const hash = 'a'.repeat(64),
+    otherHash = 'b'.repeat(64);
+  async function begin(owner: string, id: string, version = '1', size = 1048577) {
+    return call<{ id: string; assetId: string; partCount: number }>('sl_ingest_begin', [
+      owner,
+      id,
+      version,
+      size,
+      hash,
+    ]);
+  }
+  async function ready(owner: string, id: string, iid: string, index: number, size: number) {
+    await call('sl_ingest_part', [owner, id, iid, index, size, hash, false]);
+    await call('sl_ingest_part', [owner, id, iid, index, size, hash, true]);
+  }
+  it('reserves exact bounded immutable parts, binds owner/letter/version and rejects duplicate tracks', async () => {
+    const owner = await creator(),
+      other = await creator(),
+      id = await letter(owner);
+    await expect(begin(other, id)).rejects.toThrow('NOT_FOUND');
+    await expect(begin(owner, id, '1', 16777217)).rejects.toThrow('INVALID_AUDIO');
+    const i = await begin(owner, id);
+    expect(i.partCount).toBe(2);
+    await expect(begin(owner, id, '2')).rejects.toThrow('UPLOAD_PENDING');
+    await expect(call('sl_audio_reserve', [owner, id, '2', randomUUID(), 100, 1])).rejects.toThrow(
+      'UPLOAD_PENDING',
+    );
+    await expect(
+      call('sl_ingest_part', [other, id, i.id, 0, 1048576, hash, false]),
+    ).rejects.toThrow('NOT_FOUND');
+    await expect(call('sl_ingest_part', [owner, id, i.id, 0, 1, hash, false])).rejects.toThrow(
+      'INVALID_AUDIO',
+    );
+    await call('sl_ingest_part', [owner, id, i.id, 0, 1048576, hash, false]);
+    await expect(
+      call('sl_ingest_part', [owner, id, i.id, 0, 1048576, otherHash, false]),
+    ).rejects.toThrow('INVALID_AUDIO');
+    await ready(owner, id, i.id, 0, 1048576);
+    expect(
+      (await call<{ ready: boolean }>('sl_ingest_part', [owner, id, i.id, 0, 1048576, hash, false]))
+        .ready,
+    ).toBe(true);
+    await expect(call('sl_ingest_commit_begin', [owner, id, i.id])).rejects.toThrow(
+      'UPLOAD_PENDING',
+    );
+    await call('sl_save_letter', [owner, id, '2', { title: 'Concurrent edit' }]);
+    await expect(call('sl_ingest_part', [owner, id, i.id, 1, 1, hash, false])).rejects.toThrow(
+      'VERSION_CONFLICT',
+    );
+    await call('sl_ingest_cancel', [owner, id, i.id]);
+    expect(await call('sl_ingest_flags', [owner, id])).toBeNull();
+  });
+  it('finalizes only sealed manifests/current lease, preserves customization and queues only raw staging on success', async () => {
+    const owner = await creator(),
+      id = await letter(owner);
+    await call('sl_save_letter', [owner, id, '1', { heartCustomization: DEFAULT_HEART }]);
+    const i = await begin(owner, id, '2', 100);
+    await ready(owner, id, i.id, 0, 100);
+    const commit = await call<{ lease: string }>('sl_ingest_commit_begin', [owner, id, i.id]);
+    await expect(call('sl_ingest_commit_begin', [owner, id, i.id])).rejects.toThrow(
+      'UPLOAD_PENDING',
+    );
+    await expect(
+      call('sl_ingest_commit_finish', [owner, id, i.id, randomUUID(), 90, 1]),
+    ).rejects.toThrow('UPLOAD_PENDING');
+    await call('sl_ingest_commit_finish', [owner, id, i.id, commit.lease, 90, 1]);
+    const row = (
+      await db.query<{
+        presentation_config: {
+          heartCustomization: unknown;
+          music: { enabled: boolean; assetId: string };
+        };
+        version: string;
+      }>('select presentation_config,version::text from public.letters where id=$1', [id])
+    ).rows[0];
+    expect(row.version).toBe('4');
+    expect(row.presentation_config.heartCustomization).toEqual(DEFAULT_HEART);
+    expect(row.presentation_config.music.enabled).toBe(false);
+    expect(row.presentation_config.music.assetId).toBe(i.assetId);
+    const jobs = (
+      await db.query<{ bucket_id: string }>(
+        'select bucket_id from private.media_cleanup_jobs where letter_id=$1',
+        [id],
+      )
+    ).rows;
+    expect(jobs).toEqual([{ bucket_id: 'letter-audio-staging' }]);
+    await call('sl_ingest_cancel', [owner, id, i.id]);
+    await call('sl_audio_fail', [owner, id, i.assetId]);
+    expect(
+      (await db.query('select id from public.letter_assets where id=$1', [i.assetId])).rows,
+    ).toHaveLength(1);
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where letter_id=$1', [id])).rows,
+    ).toHaveLength(1);
+  });
+  it('denies published ingests, blocks publication while pending and cancels/queues on letter deletion', async () => {
+    const owner = await creator(),
+      id = await letter(owner);
+    await call('sl_save_letter', [
+      owner,
+      id,
+      '1',
+      {
+        recipientDisplayName: 'Synthetic',
+        bodyDoc: {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Private' }] }],
+        },
+        gate: {
+          nonce: randomBytes(16).toString('base64'),
+          digest: randomBytes(32).toString('base64'),
+        },
+      },
+    ]);
+    const i = await begin(owner, id, '2', 100);
+    await expect(
+      call('sl_publish', [
+        owner,
+        id,
+        '3',
+        randomBytes(32).toString('base64url'),
+        randomBytes(32).toString('base64'),
+      ]),
+    ).rejects.toThrow('UPLOAD_PENDING');
+    await call('sl_delete_letter', [owner, id, '3']);
+    expect(
+      (await db.query('select id from private.audio_ingests where id=$1', [i.id])).rows,
+    ).toHaveLength(0);
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where letter_id=$1', [id])).rows,
+    ).toHaveLength(2);
+    await expect(call('sl_ingest_commit_begin', [owner, id, i.id])).rejects.toThrow('NOT_FOUND');
+  });
+  it('reserves transient raw/final bytes and queued backlog in the existing creator budget', async () => {
+    const owner = await creator(),
+      a = await letter(owner),
+      b = await letter(owner);
+    const i = await begin(owner, a, '1', 16777216);
+    expect(i.partCount).toBe(16);
+    await expect(begin(owner, b, '1', 16777216)).rejects.toThrow('ASSET_QUOTA');
+    await call('sl_ingest_cancel', [owner, a, i.id]);
+    await expect(begin(owner, b, '1', 16777216)).rejects.toThrow('ASSET_QUOTA');
+    const bytes = (
+      await db.query<{ total: string }>(
+        'select sum(byte_size)::text as total from private.media_cleanup_jobs where letter_id=$1',
+        [a],
+      )
+    ).rows[0].total;
+    expect(bytes).toBe('33554432');
+  });
+  it('expires abandoned ingests without allowing stale/foreign commit and protects live part orphan scans', async () => {
+    const owner = await creator(),
+      id = await letter(owner),
+      i = await begin(owner, id, '1', 100);
+    const path = (
+      await db.query<{ object_path: string }>(
+        'select object_path from private.audio_ingest_parts where ingest_id=$1',
+        [i.id],
+      )
+    ).rows[0].object_path;
+    await call('sl_staging_orphan', [path]);
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where object_path=$1', [path]))
+        .rows,
+    ).toHaveLength(0);
+    await db.query(
+      "update private.audio_ingests set expires_at=now()-interval '1 second' where id=$1",
+      [i.id],
+    );
+    await expect(call('sl_ingest_commit_begin', [owner, id, i.id])).rejects.toThrow(
+      'UPLOAD_EXPIRED',
+    );
+    expect(await call('sl_ingest_stale', [])).toBe(1);
+    expect(await call('sl_ingest_flags', [owner, id])).toBeNull();
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where object_path=$1', [path]))
+        .rows,
+    ).toHaveLength(1);
+  });
+  it('denies browser staging despite broad policies and keeps legacy workers away from staging leases', async () => {
+    const owner = await creator(),
+      id = await letter(owner),
+      i = await begin(owner, id, '1', 100);
+    await asRole('authenticated', owner, async () => {
+      await expect(call('sl_ingest_flags', [owner, id])).rejects.toThrow('permission denied');
+      await expect(db.query('select * from private.audio_ingests')).rejects.toThrow(
+        'permission denied',
+      );
+      await expect(
+        db.query(
+          "insert into storage.objects(bucket_id,name) values('letter-audio-staging','bad')",
+        ),
+      ).rejects.toThrow('row-level security');
+    });
+    await call('sl_ingest_cancel', [owner, id, i.id]);
+    await db.query("update private.media_cleanup_jobs set available_at=now()-interval '1 hour' where letter_id=$1", [id]);
+    const old = await call<{ bucket: string }[]>('sl_cleanup_claim_v2', []);
+    expect(old.every((job) => job.bucket !== 'letter-audio-staging')).toBe(true);
+    const jobs = await call<{ id: string; bucket: string; path: string; leaseToken: string }[]>(
+      'sl_cleanup_claim_v3',
+      [],
+    );
+    const job = jobs.find((job) => job.bucket === 'letter-audio-staging' && job.path.includes(id))!;
+    expect(job).toBeDefined();
+    await call('sl_cleanup_complete_v2', [job.id, job.bucket, job.path, job.leaseToken, true]);
+    await call('sl_cleanup_complete_v3', [job.id, job.bucket, 'wrong', job.leaseToken, true]);
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where id=$1', [job.id])).rows,
+    ).toHaveLength(1);
+    await call('sl_cleanup_complete_v3', [job.id, job.bucket, job.path, job.leaseToken, true]);
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where id=$1', [job.id])).rows,
+    ).toHaveLength(0);
+  });
 });
 describe('single-use password recovery', () => {
   it('audits every application RPC grant/search path and every application table RLS flag', async () => {
@@ -630,7 +849,7 @@ describe('single-use password recovery', () => {
       where c.relkind='r' and (n.nspname='private' or
         (n.nspname='public' and c.relname in ('letters','letter_photos','letter_assets')))
     `);
-    expect(tables.rows).toHaveLength(10);
+    expect(tables.rows).toHaveLength(12);
     expect(tables.rows.every((row) => row.safe === true)).toBe(true);
   });
   it('atomically consumes a proof once, denies replay across callers and rejects invalid expiry', async () => {
