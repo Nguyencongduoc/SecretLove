@@ -2,6 +2,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    public code?: string,
   ) {
     super(message);
   }
@@ -24,6 +25,10 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
     throw new ApiError('The service could not respond. Please try again.', response.status);
   }
   if (!response.ok)
-    throw new ApiError(result.error?.message ?? 'The request could not finish.', response.status);
+    throw new ApiError(
+      result.error?.message ?? 'The request could not finish.',
+      response.status,
+      result.error?.code,
+    );
   return result.data as T;
 }

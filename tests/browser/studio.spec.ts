@@ -91,7 +91,10 @@ test('configured test creator can save, reload, preview, upload and delete a syn
     await page.getByLabel('Optional secret passphrase').selectOption('set');
     await page.getByLabel('New passphrase').fill('synthetic-secret-for-test');
     await page.getByRole('button', { name: 'Save changes', exact: true }).click();
-    await expect(page.getByRole('status')).toHaveText('Your letter is saved.', { timeout: 15000 });
+    await expect(page.getByRole('status').filter({ hasText: 'Your letter is saved.' })).toHaveText(
+      'Your letter is saved.',
+      { timeout: 15000 },
+    );
     await page.reload();
     await expect(page.getByLabel('Title', { exact: true })).toHaveValue(title);
     await expect(page.getByRole('textbox', { name: 'Letter message' })).toContainText(
@@ -109,7 +112,9 @@ test('configured test creator can save, reload, preview, upload and delete a syn
       .setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: input });
     await page.getByLabel('Describe this memory').fill('Synthetic pink image');
     await page.getByRole('button', { name: 'Upload private photo' }).click();
-    await expect(page.getByRole('status')).toHaveText('Your private photo is saved.');
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Your private photo is saved.' }),
+    ).toHaveText('Your private photo is saved.');
     const photo = page.getByRole('img', { name: 'Synthetic pink image', exact: true });
     await expect(photo).toBeVisible();
     await expect

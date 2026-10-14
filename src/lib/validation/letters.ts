@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { parseRichText } from './rich-text';
 import type { RichTextDoc } from '@/lib/types';
+import { sceneTextSchema } from './scene-text';
 
 export const idSchema = z.uuid();
 export const versionSchema = z
@@ -41,6 +42,7 @@ export const saveLetterSchema = z
     recipientDisplayName: nameSchema.nullable().optional(),
     bodyDoc: documentSchema.optional(),
     templateId: z.enum(['rose', 'minimal']).optional(),
+    sceneText: sceneTextSchema.nullable().optional(),
     verification: z
       .strictObject({
         name: nameSchema.refine(

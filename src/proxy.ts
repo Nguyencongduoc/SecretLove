@@ -12,7 +12,7 @@ export async function proxy(request: NextRequest) {
   } catch {
     /* Setup errors remain fail-closed in the DAL. */
   }
-  const policy = `default-src 'self'; script-src 'self' 'nonce-${nonce}'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ${supabaseOrigin}${process.env.NODE_ENV === 'development' ? ' ws: wss:' : ''}; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'`;
+  const policy = `default-src 'self'; script-src 'self' 'nonce-${nonce}'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self'; connect-src 'self' ${supabaseOrigin}${process.env.NODE_ENV === 'development' ? ' ws: wss:' : ''}; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'`;
   headers.set('Content-Security-Policy', policy);
   let response = NextResponse.next({ request: { headers } });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

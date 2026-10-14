@@ -1,6 +1,6 @@
 # SecretLove — API Contracts
 
-Status: Day 1 creator/auth/owner-photo routes implemented; publishing/sharing and all recipient contracts below are deferred. All paths are same-origin. Next.js Route Handlers delegate to a shared server-only DAL; Server Components call that DAL directly instead of fetching their own HTTP API. `GET /api/letters` returns all active owner cards (maximum 20), so pagination is currently unnecessary and `nextCursor` is null.
+Status: Creator/auth/photo, publication/recipient and the authorized private music extension are implemented. All paths are same-origin through a server-only DAL. `GET /api/letters` returns at most 20 active owner cards with `nextCursor` null. Templates remain trusted; only approved V1 music settings are editable. See DAY2_TEST_REPORT.md and MUSIC_TEST_REPORT.md for evidence.
 
 Implemented auth mutations: `POST /api/auth/login`, `/signup`, `/recover`, `/reset`, `/logout`; email confirmation/recovery uses `GET /auth/callback`. `GET /api/cron/cleanup` is a separate server bearer-authorized maintenance route, with aggregate counts only. Owner photo mutations return updated string versions; removal/deletion reports pending physical cleanup. See SETUP.md for required configuration.
 
@@ -49,11 +49,17 @@ type OwnerLetterDto = {
   publishedAt: string | null;
 };
 type RecipientContentDto = {
+  letterId: string; // Protected locator, never an access capability
   expiresAt: string; // Safe session expiry, including when resuming after reload
   recipientDisplayName: string;
   bodyDoc: RichTextDoc;
   templateId: TemplateId;
   photos: Array<{ id: string; altText: string }>;
+  presentation: {
+    template: { id: TemplateId; revision: 1 };
+    configuration: LetterConfigurationV1; // trusted template defaults plus authorized V1 music
+    scenes: readonly SceneSpec[]; // Trusted server plan, not arbitrary creator code
+  };
 };
 ```
 
@@ -65,16 +71,16 @@ Use Supabase Auth SDK for registration, password sign-in, sign-out, and reset-em
 
 ## 4. Creator letters
 
-| Method/path | Auth | Request | Success |
-| --- | --- | --- | --- |
-| `GET /api/letters` | Creator | `?cursor=...&limit=20` (1–20) | 200 `{items, nextCursor}`; items contain id/title/status/templateId/version/createdAt/updatedAt only |
-| `POST /api/letters` | Creator | `{ "title": "..." }` | 201 OwnerLetterDto, default empty rose draft; reject active-letter quota with 409 `LETTER_LIMIT` |
-| `GET /api/letters/{id}` | Owner | None | 200 OwnerLetterDto |
-| `PATCH /api/letters/{id}` | Owner, draft | Save payload below | 200 updated OwnerLetterDto; expectedVersion mandatory |
-| `POST /api/letters/{id}/publish` | Owner | `{ "expectedVersion": "..." }` | 200 `{letter, shareUrl, publishedAt}`; invalid draft 422; pending photos 409 |
-| `GET /api/letters/{id}/share` | Owner, published | None | 200 `{shareUrl}`; draft 409 `NOT_PUBLISHED` |
-| `POST /api/letters/{id}/unpublish` | Owner | `{ "expectedVersion": "..." }` | 200 updated OwnerLetterDto; revocation committed before response |
-| `DELETE /api/letters/{id}` | Owner | `{ "expectedVersion": "..." }` | 202 `{deleted: true, mediaCleanup: "pending"}`; or 200 with cleanup `not_required` if no photo reservations, media, or outstanding cleanup jobs |
+| Method/path                        | Auth             | Request                        | Success                                                                                                                                         |
+| ---------------------------------- | ---------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/letters`                 | Creator          | `?cursor=...&limit=20` (1–20)  | 200 `{items, nextCursor}`; items contain id/title/status/templateId/version/createdAt/updatedAt only                                            |
+| `POST /api/letters`                | Creator          | `{ "title": "..." }`           | 201 OwnerLetterDto, default empty rose draft; reject active-letter quota with 409 `LETTER_LIMIT`                                                |
+| `GET /api/letters/{id}`            | Owner            | None                           | 200 OwnerLetterDto                                                                                                                              |
+| `PATCH /api/letters/{id}`          | Owner, draft     | Save payload below             | 200 updated OwnerLetterDto; expectedVersion mandatory                                                                                           |
+| `POST /api/letters/{id}/publish`   | Owner            | `{ "expectedVersion": "..." }` | 200 `{letter, shareUrl}`; publishedAt is in letter; invalid draft 422; pending photos 409                                                       |
+| `GET /api/letters/{id}/share`      | Owner, published | None                           | 200 `{shareUrl}`; draft 409 `NOT_PUBLISHED`                                                                                                     |
+| `POST /api/letters/{id}/unpublish` | Owner            | `{ "expectedVersion": "..." }` | 200 updated OwnerLetterDto; revocation committed before response                                                                                |
+| `DELETE /api/letters/{id}`         | Owner            | `{ "expectedVersion": "..." }` | 202 `{deleted: true, mediaCleanup: "pending"}`; or 200 with cleanup `not_required` if no photo reservations, media, or outstanding cleanup jobs |
 
 Dashboard list uses stable keyset ordering by updatedAt/id descending; cursor is validated and never changes ownership scope. No body/photos in list responses. The creator share panel locally generates a QR PNG encoding `APP_ORIGIN + /l/{shareToken}`; no external QR service/API. Owner preview page authenticates and reads saved OwnerLetterDto directly through the DAL.
 
@@ -102,12 +108,12 @@ Deletion is immediate for authorization but physical Storage cleanup can be asyn
 
 ## 5. Creator photo endpoints
 
-| Method/path | Request | Success/behavior |
-| --- | --- | --- |
-| `POST /api/letters/{id}/photos` | multipart `file`, optional `altText`, required `expectedVersion`; exactly one file | 201 `{photo, version}` only after normalized private upload/finalization; owner/draft required |
-| `GET /api/letters/{id}/photos/{photoId}/media` | No body | 200 image/webp bytes, owner only; ready status; no redirect/cache |
-| `PATCH /api/letters/{id}/photos/{photoId}` | `{altText, expectedVersion}` | 200 `{photo, version}`; owner/draft and membership required |
-| `DELETE /api/letters/{id}/photos/{photoId}` | `{expectedVersion}` | 202 `{removed: true, version, mediaCleanup: "pending"}`; draft only; queued path inaccessible immediately |
+| Method/path                                    | Request                                                                            | Success/behavior                                                                                          |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `POST /api/letters/{id}/photos`                | multipart `file`, optional `altText`, required `expectedVersion`; exactly one file | 201 `{photo, version}` only after normalized private upload/finalization; owner/draft required            |
+| `GET /api/letters/{id}/photos/{photoId}/media` | No body                                                                            | 200 image/webp bytes, owner only; ready status; no redirect/cache                                         |
+| `PATCH /api/letters/{id}/photos/{photoId}`     | `{altText, expectedVersion}`                                                       | 200 `{photo, version}`; owner/draft and membership required                                               |
+| `DELETE /api/letters/{id}/photos/{photoId}`    | `{expectedVersion}`                                                                | 202 `{removed: true, version, mediaCleanup: "pending"}`; draft only; queued path inaccessible immediately |
 
 Input file <=3 MiB; total multipart request <=3.5 MiB. Validate signature, actual decode, allowed format/dimensions/pixel count; strip metadata/re-encode; output <=3 MiB. More than six ready/pending slots returns 409 `PHOTO_LIMIT`. Pending uploads block publish; quota counts pending too. Concurrent modifications can cause a safe 409; late Storage success is cleaned rather than resurrecting metadata. SDK/storage/decode failures never produce 201.
 
@@ -115,13 +121,15 @@ The Studio serializes mutations/uploads per letter; disable Save/publish while a
 
 ## 6. Recipient endpoints
 
-| Method/path | Auth | Request | Success |
-| --- | --- | --- | --- |
-| `GET /api/recipient/{shareToken}/bootstrap` | None | None | 200 `{available: true, passphraseRequired: boolean}` for active published link only |
-| `POST /api/recipient/{shareToken}/verify` | None; throttled | `{name, dateOfBirth, passphrase?}` | 200 `{verified: true, expiresAt}` and Set-Cookie; no content/token in JSON |
-| `GET /api/recipient/{shareToken}/content` | Letter-bound recipient cookie | None | 200 RecipientContentDto |
-| `GET /api/recipient/{shareToken}/photos/{photoId}/media` | Same recipient cookie | None | 200 image/webp bytes after session + photo membership checks |
-| `DELETE /api/recipient/{shareToken}/session` | Existing cookie if present | No body; Origin check | 204, revoke matching session if found and clear cookie; idempotent even if no session |
+| Method/path                                                  | Auth                          | Request                            | Success                                                                                                                                                     |
+| ------------------------------------------------------------ | ----------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/recipient/{shareToken}/bootstrap`                  | None                          | None                               | 200 `{available: true, passphraseRequired: boolean}` for active published link only                                                                         |
+| `POST /api/recipient/{shareToken}/verify`                    | None; throttled               | `{name, dateOfBirth, passphrase?}` | 200 `{verified: true, expiresAt}` and Set-Cookie; no content/token in JSON                                                                                  |
+| `GET /api/recipient/{shareToken}/content`                    | Letter-bound recipient cookie | None                               | 200 RecipientContentDto                                                                                                                                     |
+| `GET /api/recipient/{shareToken}/photos/{photoId}/media`     | Same recipient cookie         | None                               | 200 image/webp bytes after session + photo membership checks; Range rejected after authorization                                                            |
+| `HEAD /api/recipient/{shareToken}/photos/{photoId}/media`    | Same recipient cookie         | None                               | 200/no body after the same checks; no size/path disclosure                                                                                                  |
+| `GET/HEAD /api/recipient/{shareToken}/audio/{assetId}/media` | Same recipient cookie         | Optional single byte Range         | Current enabled ready same-letter music only; full 200/HEAD, single 206, invalid range 416 after authorization; unauthorized 401/inactive or mismatched 404 |
+| `DELETE /api/recipient/{shareToken}/session`                 | Existing cookie if present    | No body; Origin check              | 204, revoke matching session if found and clear cookie; idempotent even if no session                                                                       |
 
 Landing `/l/{shareToken}` uses only the minimal bootstrap function and a generic title/description/graphic. It must not query or serialize the message/photo paths into the server-rendered shell. Bootstrap exposes link availability and passphrase requirement only; rate-limit unknown tokens before lookup too. There is no public “check name”, “check DOB”, photo list, or content endpoint without session.
 
@@ -153,3 +161,25 @@ Retries occur on a later scheduled/operator invocation; Vercel does not automati
 6. Stale expectedVersion Save → 409 with no writes; client offers reload instead of silently losing changes.
 7. Successful unpublish/delete followed by content/media request → unavailable; a prior response already delivered cannot be recalled.
 8. Supabase/Storage/throttle outage → retryable real error; no fake success or unthrottled verification.
+
+## Music extension contracts
+
+Current audio input/output caps after migration 004: 16 MiB/360 seconds, with the optional server byte cap allowed to lower the hard maximum. Multipart adds only 64 KiB overhead. No endpoint/configuration shape changes. Photos remain 3 MiB. Manual migration and hosting/transport restrictions are in FULL_SONG_AUDIO_SETUP.md; isolated five-minute upload/authorized playback acceptance passed.
+
+Owner Letter DTO now adds music (validated V1 defaults or stored settings) and audioAsset (null or id/status/durationSeconds). No bucket/path/private filename is returned. Protected recipient presentation contains the resolved music configuration only after authorization; bootstrap/metadata remain generic.
+
+| Endpoint                                                   | Input                                                                                       | Result                                                                  |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| POST /api/letters/{id}/music                               | multipart: one MP3 file, expectedVersion, rightsAcknowledged=true                           | 201 updated owner Letter; attachment initially disabled                 |
+| PATCH /api/letters/{id}/music                              | JSON expectedVersion + strict music {enabled,assetId,defaultVolume,loop,startPolicy:manual} | Updated Letter; reference unchanged/ready/same-letter                   |
+| DELETE /api/letters/{id}/music                             | JSON expectedVersion                                                                        | Updated Letter; enabled false/id null; durable physical cleanup pending |
+| GET/HEAD /api/letters/{id}/audio/{assetId}/media           | Owner cookie; optional single Range                                                         | Owner-audition bytes/headers, including disabled attached track         |
+| GET/HEAD /api/recipient/{shareToken}/audio/{assetId}/media | Letter-bound recipient cookie; optional single Range                                        | Only current enabled selected ready track                               |
+
+All music mutations enforce Origin, owner, draft, expected version and rate limits. No arbitrary URL, bucket, path, creator ID or filename persists. Delivery rechecks access before sizes/ranges; 200 full/HEAD, 206 single range, 416 invalid/multiple/unsatisfiable with Content-Range after authorization. HEAD sends no bytes. Private no-store/nosniff/no-referrer; no redirects/CORS/cache. Missing/wrong-letter/disabled assets are 404; missing/expired/revoked sessions on active share 401. New AUDIO_LIMIT/ASSET_QUOTA 409, INVALID_AUDIO/INVALID_MUSIC 422 and existing payload/MIME/temporary failure statuses apply. Refer to MUSIC_SETUP.md for bounds and MUSIC_TEST_REPORT.md for current results.
+
+## Latest scene-copy and soundtrack behavior
+
+PATCH /api/letters/{id} adds optional sceneText (strict heart/closing object, or null to reset) alongside expectedVersion. Omitting it preserves customization. Subtitle <=80, heading <=160, invitation <=240, revealed/closing message <=500; plain non-empty strings, <=8 KiB. Owner Letter DTO and authorized recipient content include resolved sceneText. It is absent from bootstrap/metadata. Existing ownership/draft/version/Origin/rate policies apply; no new public endpoint. See SCENE_TEXT_SETUP.md for JSON and migration 005.
+
+Music configuration wire shape remains V1 with startPolicy=manual for interaction-initiated gifts. The latest request replaces separate recipient Play controls with an attempt after authorized unlock/resume and synchronous retry on envelope/scene interaction if blocked. Recipient playback controls are omitted; creator audition unchanged. This does not grant media access, bypass browser permissions, force continuous playback or change backend asset/session requirements.

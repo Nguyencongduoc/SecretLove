@@ -12,6 +12,40 @@ export function gateDigest(letterId: string, name: string, dateOfBirth: string, 
   };
 }
 let activeHashes = 0;
+export async function comparePassphrase(value: string, record: unknown): Promise<boolean | null> {
+  if (!record || typeof record !== 'object') throw new Error('Invalid passphrase record.');
+  const r = record as Record<string, unknown>;
+  if (
+    r.algorithm !== 'scrypt' ||
+    r.version !== 1 ||
+    r.N !== 131072 ||
+    r.r !== 8 ||
+    r.p !== 1 ||
+    typeof r.salt !== 'string' ||
+    typeof r.hash !== 'string' ||
+    Buffer.from(r.salt, 'base64').length !== 16 ||
+    Buffer.from(r.hash, 'base64').length !== 32 ||
+    Buffer.from(r.salt, 'base64').toString('base64') !== r.salt ||
+    Buffer.from(r.hash, 'base64').toString('base64') !== r.hash
+  )
+    throw new Error('Invalid passphrase record.');
+  if (activeHashes >= 2) return null;
+  activeHashes++;
+  try {
+    const candidate = await new Promise<Buffer>((resolve, reject) =>
+      scryptCallback(
+        value,
+        Buffer.from(r.salt as string, 'base64'),
+        32,
+        { N: 131072, r: 8, p: 1, maxmem: 192 * 1024 * 1024 },
+        (error, result) => (error ? reject(error) : resolve(result)),
+      ),
+    );
+    return timingSafeEqual(candidate, Buffer.from(r.hash, 'base64'));
+  } finally {
+    activeHashes--;
+  }
+}
 export async function hashPassphrase(value: string) {
   if (activeHashes >= 2) return null;
   activeHashes++;
