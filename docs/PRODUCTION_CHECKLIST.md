@@ -1,6 +1,20 @@
 # SecretLove — separate Preview and public release gates
 
-Unchecked means pending; these are not test results. Current execution evidence is in DAY3_DEPLOYMENT_READINESS.md. No deployment or Prompt 08 is authorized.
+Unchecked means pending; these are not test results. Prompt 07 evidence is in DAY3_DEPLOYMENT_READINESS.md; current Prompt 07.5 evidence and all seventeen pending HTTPS rows are in DAY3_PREVIEW_ACCEPTANCE_REPORT.md. No remote creation/configuration/deployment or Prompt 08 is authorized.
+
+## Prompt 07.5 — exact operator gate (current)
+
+- [x] Verify `feature/day-3-preview-acceptance`, initially clean code baseline `724325558c7d7b18be15bf21b4eaf793f80ec4f1`; inspect configuration, history, source security boundaries and target-test coverage.
+- [x] Prepare PREVIEW_OPERATOR_CHECKLIST.md with all nine setup areas, Preview-only environment matrix and an incomplete approval packet; no target invented.
+- [x] Rerun local tests only: 69 PASS, 1 optional SKIPPED, nine files. Prior typecheck/lint/build/24 browser passes remain historical, not new HTTPS evidence.
+- [ ] Confirm exact account/team, actual project ID/existence, stable HTTPS Preview origin and full alias inventory. Missing local project link does not prove remote absence.
+- [ ] Obtain explicit setup/creation authorization before any remote mutation; resolve origin-before-creation dependency with the operator. Preparation/identifiers do not grant permission.
+- [ ] Confirm Vercel Authentication **All Deployments** and effective owner-only membership/access groups/access grants/bypass/exemption inventory. A toggle or one /login redirect is insufficient evidence.
+- [ ] Record verified Preview-scoped keys/project/origin/Auth template/redirect/SMTP changes, runtime/region/plan/resource budgets, test inboxes and monitoring/rollback plan; no Production scope.
+- [ ] Present the completed exact project/origin/environment/access/revision/action packet, ask explicit deployment authorization and STOP until received.
+- [ ] After approved protected deployment, execute the guarded scenario plus missing supplemental/manual checks from the seventeen-row report. Preserve real PASS/FAIL/NOT TESTED and sanitized evidence per alias/revision.
+- [ ] Approve exact new fixture deletion paths before scoped cleanup. Existing cron has no cohort selector: no valid global cron/maintenance or existing synthetic Auth deletion. Direct exact-object removal is not proof of worker drainage.
+- [ ] Record separate decisions: attempt readiness, owner-only acceptance, public production. All currently NO-GO; owner acceptance is NOT TESTED.
 
 ## Before an owner-only private Preview attempt
 
@@ -8,7 +22,7 @@ Unchecked means pending; these are not test results. Current execution evidence 
 - [x] User manually applied/verified migration 008; 001–008 immutable. No browser staging grants.
 - [x] Proposed project secretlove-preview, existing isolated Supabase project, Vercel Authentication and owner-only testers recorded.
 - [x] Disable Git auto-deploy and prepare a Preview-only Vercel build-format guard; no project/remote setting created.
-- [ ] Owner creates/verifies project and plan/region/Node 24.x; confirms exact stable HTTPS Preview origin. No invented URL.
+- [ ] Owner verifies project identity and plan/region/Node 24.x; any creation requires the separate authorization gate. Confirm actual stable HTTPS Preview origin. No invented URL.
 - [ ] Owner confirms Protection on every URL/alias, approved tester membership and Preview-scoped credentials. Exact APP_ORIGIN/isolated project reference and callback settings verified.
 - [ ] Assign monitoring/cleanup operator and verify isolated-project Storage/RLS/RPC/schema configuration including staging.
 - [ ] Confirm SMTP/sender/templates and actual test inbox plan; keep public contact email pending until provided/verified.

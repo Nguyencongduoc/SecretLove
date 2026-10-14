@@ -69,3 +69,13 @@ Owner approved **report-led suspension after administrator review**, with Close 
 5. Review precise historical fixture/account/letter/object manifest and authorize any cleanup separately. No automatic bulk deletion.
 
 Changed implementation: audio-response/ingest DAL and validators, three ingest routes, Studio chunk uploader/pending cancellation/DTO, cleanup v3 integration, deployment guard/Vercel config, local/browser/guarded target tests. Applied 001–007 and .env.local/dependencies are preserved; new 008 was manually applied and locked. No public/remote deployment occurred.
+
+## Prompt 07.5 follow-up — 2026-10-15, Asia/Bangkok
+
+The user authorized configuration review and gated owner-only HTTPS acceptance on `feature/day-3-preview-acceptance`, not unconditional creation or deployment. Source baseline `724325558c7d7b18be15bf21b4eaf793f80ec4f1` was initially clean. Phase A offline review/checklist is complete. No local Vercel project link/CLI is available; remote existence, account/project IDs and actual HTTPS origin remain unverified/pending. Local public Supabase configuration confirms the existing reference `samelfoyrujhcywcnofw`; no production project selection, secret disclosure or environment change.
+
+New local-only validation: **69 PASS / 1 optional SKIPPED**, nine files. Prompt 07's build/lint/typecheck/browser results above remain historical. No hosted browser, SMTP, remote SQL/settings, global cleanup or account mutation executed in this follow-up. Applied history through 008 remains immutable.
+
+PREVIEW_OPERATOR_CHECKLIST.md specifies all nine setup areas and the exact approval packet. DAY3_PREVIEW_ACCEPTANCE_REPORT.md records all seventeen requested HTTPS/operational tests as **NOT TESTED**, with actual-source evidence, limitations and corrective plans. Existing guarded target scenario provides partial coverage only. All Deployments plus an effective team/project/access/bypass audit is required for owner-only protection; existing cleanup is not cohort-scoped and must not be run against historical fixtures.
+
+Current decisions are separate: **attempt readiness NO-GO** pending exact configuration and explicit approval; **owner-only acceptance NO-GO/NOT TESTED** pending protected target execution; **public production NO-GO** for the independent privacy/abuse/contact/retention/operational gaps. Phase B remains stopped until a complete exact target/action is presented and expressly authorized. No Prompt 08 or Production promotion.
