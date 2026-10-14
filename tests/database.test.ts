@@ -595,6 +595,7 @@ beforeAll(async () => {
   ).toEqual({ status: 'ready', byte_size: 100, duration_seconds: 30 });
   await db.exec(await readFile('supabase/migrations/202610140005_scene_text.sql', 'utf8'));
   await db.exec(await readFile('supabase/migrations/202610140006_particle_heart.sql', 'utf8'));
+  await db.exec(await readFile('supabase/migrations/202610140007_recovery_single_use.sql', 'utf8'));
   expect(
     (
       await db.query('select presentation_config,version from public.letters where id=$1', [
@@ -609,6 +610,86 @@ beforeAll(async () => {
       ])
     ).rows[0].scene_text,
   ).toBeNull();
+});
+describe('single-use password recovery', () => {
+  it('audits every application RPC grant/search path and every application table RLS flag', async () => {
+    const functions = await db.query<{ safe: boolean }>(`
+      select not has_function_privilege('anon',p.oid,'EXECUTE')
+        and not has_function_privilege('authenticated',p.oid,'EXECUTE')
+        and has_function_privilege('service_role',p.oid,'EXECUTE')
+        and not p.prosecdef
+        and p.proconfig @> array['search_path=""'] as safe
+      from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace
+      where n.nspname='private' or (n.nspname='public' and p.proname like 'sl\\_%' escape '\\')
+    `);
+    expect(functions.rows.length).toBeGreaterThan(30);
+    expect(functions.rows.every((row) => row.safe === true)).toBe(true);
+    const tables = await db.query<{ safe: boolean }>(`
+      select c.relrowsecurity as safe from pg_catalog.pg_class c
+      join pg_catalog.pg_namespace n on n.oid=c.relnamespace
+      where c.relkind='r' and (n.nspname='private' or
+        (n.nspname='public' and c.relname in ('letters','letter_photos','letter_assets')))
+    `);
+    expect(tables.rows).toHaveLength(10);
+    expect(tables.rows.every((row) => row.safe === true)).toBe(true);
+  });
+  it('atomically consumes a proof once, denies replay across callers and rejects invalid expiry', async () => {
+    const owner = await creator(),
+      other = await creator();
+    const digest = randomBytes(32).toString('base64');
+    const expiry = new Date(Date.now() + 600000).toISOString();
+    expect(await call('sl_recovery_consume', [owner, digest, expiry])).toBe(true);
+    expect(await call('sl_recovery_consume', [owner, digest, expiry])).toBe(false);
+    expect(await call('sl_recovery_consume', [other, digest, expiry])).toBe(false);
+    const concurrentDigest = randomBytes(32).toString('base64');
+    expect(
+      (
+        await Promise.all([
+          call('sl_recovery_consume', [owner, concurrentDigest, expiry]),
+          call('sl_recovery_consume', [owner, concurrentDigest, expiry]),
+        ])
+      ).filter(Boolean),
+    ).toHaveLength(1);
+    for (const invalid of [
+      null,
+      new Date(Date.now() - 1).toISOString(),
+      new Date(Date.now() + 720000).toISOString(),
+    ])
+      await expect(
+        call('sl_recovery_consume', [owner, randomBytes(32).toString('base64'), invalid]),
+      ).rejects.toThrow('INVALID_RECOVERY');
+    await expect(call('sl_recovery_consume', [owner, 'bad', expiry])).rejects.toThrow(
+      'INVALID_RECOVERY',
+    );
+  });
+  it('denies browser table and RPC access and prunes only expired consumptions', async () => {
+    const owner = await creator();
+    await asRole('anon', owner, async () => {
+      await expect(
+        call('sl_recovery_consume', [
+          owner,
+          randomBytes(32).toString('base64'),
+          new Date(Date.now() + 600000).toISOString(),
+        ]),
+      ).rejects.toThrow('permission denied');
+      await expect(db.query('select * from private.recovery_consumptions')).rejects.toThrow(
+        'permission denied',
+      );
+    });
+    await asRole('authenticated', owner, async () => {
+      await expect(call('sl_recovery_prune', [])).rejects.toThrow('permission denied');
+    });
+    await db.query(
+      "insert into private.recovery_consumptions(proof_digest,user_id,expires_at) values($1,$2,now()-interval '1 minute')",
+      [randomBytes(32), owner],
+    );
+    expect(await call('sl_recovery_prune', [])).toBe(1);
+    const digest = randomBytes(32).toString('base64'),
+      expiry = new Date(Date.now() + 600000).toISOString();
+    expect(await call('sl_recovery_consume', [owner, digest, expiry])).toBe(true);
+    expect(await call('sl_recovery_prune', [])).toBe(0);
+    expect(await call('sl_recovery_consume', [owner, digest, expiry])).toBe(false);
+  });
 });
 it('preserves a real pre-upgrade Day 1 row through recipient and music migrations', async () => {
   const { owner, id } = preUpgradeLetter;

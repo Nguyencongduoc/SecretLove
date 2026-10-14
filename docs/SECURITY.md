@@ -1,6 +1,6 @@
 # SecretLove — Security Design and Release Gates
 
-Status: core/Day 1.5 architecture approved. Day 1 Creator controls and Day 2 server-enforced recipient gates/sessions/content/photo delivery are implemented and tested locally plus against isolated Supabase. See DAY2_TEST_REPORT.md for exact PASS/NOT TESTED evidence. Stored customization/music controls in section 12 remain future work. This is not a certification of deployed protections; email/deployment/resource gates remain. Read before changing authentication, authorization, verification, sessions, content APIs or Storage permissions.
+Status: core/Day 1.5 architecture approved; Day 3 security audit authorized. Creator, recipient, private music and bounded particle-heart customization exist. Historical future proposals below do not supersede later approved implementations. See DAY3_SECURITY_AUDIT.md for current evidence and release blockers; earlier test reports remain historical. This is not a certification of deployed protections. Read before changing authentication, authorization, verification, sessions, content APIs or Storage permissions.
 
 ## 1. Security claims and trust boundaries
 
@@ -35,6 +35,7 @@ Trusted systems: Next.js server/DAL, Supabase Auth/PostgreSQL/Storage, deploymen
 - Creator JWT-scoped reads use RLS (`owner_id = auth.uid()`); deny direct browser writes. Service-only transactional writes recheck owner and parent/photo membership after locks. Never import privileged clients into browser components.
 - Refresh integration/layout protection does not replace authorization on pages, Route Handlers, Server Actions if later introduced, RPC gateways, or media downloads. See [Next.js authentication guidance](https://nextjs.org/docs/app/guides/authentication).
 - Restrict callback/recovery redirects to configured app origins and safe relative paths; no user-controlled open redirect. Respect Supabase SSR cookie/session behavior rather than hand-rolling creator cookies.
+- Password reset additionally requires a ten-minute HMAC proof bound to the verified user and current access token. Migration 007 records only its digest in a private RLS table; a service-only atomic insert consumes it before Auth password update. Cookie clearing alone is insufficient: Day 3 reproduced copied-cookie replay against the previous implementation. Duplicate/concurrent consumption denies reset. Missing migration/database failure denies reset; provider failure after consumption requires a fresh recovery link. Expired consumption records are pruned by authenticated cleanup. Details: DAY3_RECOVERY_SETUP.md.
 - Anonymous and unrelated creators cannot access draft/published content through Data API, REST, GraphQL, functions, or Storage. Publication does not create anonymous RLS access.
 
 ## 4. Input rules and verification secrets
@@ -120,6 +121,7 @@ Day 2 accepts `x-vercel-forwarded-for` only when running on Vercel; malformed/mi
 - Keep retry job until success; bounded batches/leases/backoff and redacted operational failure signal. Cleanup outage cannot restore recipient access.
 - Scheduled retries mean a later cron/operator invocation; do not assume Vercel retries failed cron requests. Persist a bounded reconciliation cursor/last-success marker and regularly restart full sweeps so pagination shifts cannot permanently hide orphan objects. Monitor remaining jobs and missed runs; daily best-effort cleanup is not a guaranteed erasure deadline. See [Vercel cron behavior](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
 - Account deletion is operator-assisted for MVP: tombstone all owned letters/enqueue media first, then remove Auth account after dependencies are handled. Do not silently cascade Auth deletion and lose cleanup paths.
+- Public-release readiness also requires a reviewed reporting/rejection/blocking process and user-facing privacy, consent and retention disclosures. These controls are currently missing; Close letter revokes only one session and is not a persistent block or abuse report. Documentation assumptions about creator permission are not implemented consent controls. Record these as release gaps, not passing tests; policy and UX decisions require a separate scoped implementation.
 - Provider backups/log retention and recovery are distinct from live deletion; document selected account settings before launch. Do not claim instantaneous erasure from backups or a jurisdiction-specific compliance guarantee. No recipient data in analytics.
 
 ## 11. Required security validation before release

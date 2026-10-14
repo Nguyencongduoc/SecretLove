@@ -4,7 +4,7 @@ import { assertOrigin, endpoint, jsonBody, success } from '@/lib/server/http';
 import { AppError } from '@/lib/server/errors';
 import { appOrigin } from '@/lib/server/env';
 import { requireCreator } from '@/lib/server/identity';
-import { clearRecovery, requireRecovery } from '@/lib/server/recovery';
+import { clearRecovery, consumeRecovery } from '@/lib/server/recovery';
 export const dynamic = 'force-dynamic';
 const email = z.email().max(254);
 const password = z.string().min(12, 'Use at least 12 characters.').max(128);
@@ -65,13 +65,13 @@ export async function POST(request: Request, context: { params: Promise<{ action
       if (!data.session)
         throw new AppError(401, 'RECOVERY_REQUIRED', 'Open a fresh recovery link.');
       // getUser above verifies the same cookie-backed token; raw session is used only to bind the proof.
-      await requireRecovery(user.id, data.session.access_token);
+      await consumeRecovery(user.id, data.session.access_token);
       const { error } = await client.auth.updateUser({ password: input.password });
       if (error)
         throw new AppError(
           503,
           'RESET_FAILED',
-          'Your password could not be updated. Please try again.',
+          'Your password could not be updated. Request a fresh recovery link and try again.',
         );
       await clearRecovery();
       return success({ updated: true });
