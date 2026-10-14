@@ -1,4 +1,5 @@
 import type { Reporter, TestCase, TestResult, FullResult } from '@playwright/test/reporter';
+import { mkdirSync, writeFileSync } from 'node:fs';
 // Keep passwords, provider callback tokens and request bodies out of terminal diagnostics.
 export default class SafeReporter implements Reporter {
   passed = 0;
@@ -14,6 +15,16 @@ export default class SafeReporter implements Reporter {
         console.log(`Failure location: ${error.location.file}:${error.location.line}`);
   }
   onEnd(result: FullResult) {
+    mkdirSync('test-results', { recursive: true });
+    writeFileSync(
+      'test-results/secretlove-summary.json',
+      JSON.stringify({
+        status: result.status,
+        passed: this.passed,
+        skipped: this.skipped,
+        failed: this.failed,
+      }),
+    );
     console.log(
       `Browser result: ${result.status}; ${this.passed} passed, ${this.skipped} skipped, ${this.failed} failed.`,
     );

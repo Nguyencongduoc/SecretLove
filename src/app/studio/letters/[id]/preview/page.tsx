@@ -48,6 +48,17 @@ export default async function Preview({ params }: { params: Promise<{ id: string
           </section>
         )}
         <p className="serif mt-12 text-center text-xl">With love, always.</p>
+        <section className="mt-10 space-y-4 border-t pt-6" aria-label="Scene text preview">
+          <h2 className="text-2xl">Heartbeat preview</h2>
+          <p className="hint break-words">{letter.sceneText.heart.eyebrow}</p>
+          <h3 className="text-xl break-words">{letter.sceneText.heart.title}</h3>
+          <p className="whitespace-pre-line break-words">{letter.sceneText.heart.prompt}</p>
+          <p className="whitespace-pre-line break-words">{letter.sceneText.heart.message}</p>
+          <h2 className="pt-5 text-2xl">Closing preview</h2>
+          <p className="hint break-words">{letter.sceneText.closing.eyebrow}</p>
+          <h3 className="text-xl break-words">{letter.sceneText.closing.title}</h3>
+          <p className="whitespace-pre-line break-words">{letter.sceneText.closing.message}</p>
+        </section>
       </article>
     </main>
   );

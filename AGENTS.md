@@ -6,7 +6,7 @@ SecretLove is a private digital letter platform: authenticated Creator Studio an
 ## Approval and scope
 
 - Read docs/PRD.md, docs/ARCHITECTURE.md, docs/ARCHITECTURE_REVIEW.md, docs/DATABASE.md, docs/API.md, and TASKS.md before work.
-- The user approved the architecture and authorized Day 1 Creator Studio implementation. Recipient experience, publishing/sharing, Day 2 work, and deployment require a later instruction. Preserve .env.local; no destructive SQL.
+- The user approved the core and Day 1.5 architecture and authorized Day 2 publishing/access plus the complete recipient scenes (previously planned for Day 3). Preserve Day 1 functionality and .env.local; no destructive SQL. Advanced theme/drag-and-drop editors, video, private music uploads and deployment remain outside this milestone.
 - After approval, implement one milestone at a time; keep future features out of scope. The three-day target is a stretch estimate requiring schedule/scope approval. Record approval and progress in TASKS.md.
 
 ## Implementation

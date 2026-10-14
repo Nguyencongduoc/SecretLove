@@ -9,6 +9,9 @@ export type RichTextNode = {
 export type RichTextDoc = { type: 'doc'; content: RichTextNode[] };
 export type Photo = { id: string; altText: string; status: 'pending' | 'ready'; createdAt: string };
 export type Letter = {
+  sceneText: import('@/lib/validation/scene-text').SceneText;
+  music: import('@/lib/validation/music').MusicConfiguration;
+  audioAsset: { id: string; status: 'pending' | 'ready'; durationSeconds: number } | null;
   id: string;
   title: string;
   recipientDisplayName: string | null;

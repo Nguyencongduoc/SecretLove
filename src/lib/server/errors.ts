@@ -10,6 +10,12 @@ export class AppError extends Error {
   }
 }
 const errors: Record<string, [number, string]> = {
+  AUDIO_LIMIT: [409, 'Remove the current track before replacing it.'],
+  ASSET_QUOTA: [
+    409,
+    'Your audio storage limit is reached. Wait for cleanup or remove unused tracks.',
+  ],
+  INVALID_MUSIC: [422, 'Choose a ready track belonging to this letter and valid music settings.'],
   NOT_FOUND: [404, 'This letter or photo is unavailable.'],
   VERSION_CONFLICT: [409, 'This letter changed. Reload it before saving again.'],
   LETTER_PUBLISHED: [409, 'Unpublish this letter before editing.'],
@@ -17,6 +23,12 @@ const errors: Record<string, [number, string]> = {
   PHOTO_LIMIT: [409, 'A letter can have up to six photos.'],
   VERIFICATION_REQUIRED: [422, 'Set the verification name and date of birth first.'],
   UPLOAD_PENDING: [409, 'Wait for the pending upload to finish.'],
+  PUBLISH_INCOMPLETE: [
+    422,
+    'Save a greeting, message, and verification details before publishing.',
+  ],
+  NOT_PUBLISHED: [409, 'Publish this letter before sharing it.'],
+  ACCESS_REQUIRED: [401, 'Unlock this letter to continue.'],
 };
 export function databaseError(message?: string): never {
   const key = message && Object.hasOwn(errors, message) ? message : 'TEMPORARILY_UNAVAILABLE';

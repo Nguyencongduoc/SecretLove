@@ -5,18 +5,23 @@ import { useRouter } from 'next/navigation';
 import { api, ApiError } from '@/lib/client-api';
 import type { Letter, Photo } from '@/lib/types';
 import { MessageEditor } from './message-editor';
+import { SharingPanel } from './sharing-panel';
+import { MusicSection } from './music-section';
+import { SceneTextFields } from './scene-text-fields';
 export function LetterEditor({ initial }: { initial: Letter }) {
   const [letter, setLetter] = useState(initial);
   const [title, setTitle] = useState(initial.title);
   const [displayName, setDisplayName] = useState(initial.recipientDisplayName ?? '');
   const [body, setBody] = useState(initial.bodyDoc);
   const [template, setTemplate] = useState(initial.templateId);
+  const [sceneText, setSceneText] = useState(initial.sceneText);
   const [gateName, setGateName] = useState('');
   const [dob, setDob] = useState('');
   const [passAction, setPassAction] = useState('keep');
   const [passphrase, setPassphrase] = useState('');
   const [altText, setAltText] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [musicDirty, setMusicDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [stale, setStale] = useState(false);
   const [error, setError] = useState('');
@@ -24,15 +29,15 @@ export function LetterEditor({ initial }: { initial: Letter }) {
   const locked = useRef(false);
   const router = useRouter();
   const readonly = letter.status !== 'draft';
-  const disabled = busy || stale || readonly;
+  const disabled = busy || stale || readonly || musicDirty;
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !musicDirty) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
+  }, [dirty, musicDirty]);
   async function mutate(work: () => Promise<void>) {
     if (locked.current || stale) return;
     locked.current = true;
@@ -58,6 +63,7 @@ export function LetterEditor({ initial }: { initial: Letter }) {
         recipientDisplayName: displayName.trim() || null,
         bodyDoc: body,
         templateId: template,
+        sceneText,
         ...(gateName || dob ? { verification: { name: gateName, dateOfBirth: dob } } : {}),
         ...(passAction === 'keep'
           ? {}
@@ -69,6 +75,7 @@ export function LetterEditor({ initial }: { initial: Letter }) {
             }),
       });
       setLetter(updated);
+      setSceneText(updated.sceneText);
       setDirty(false);
       setGateName('');
       setDob('');
@@ -88,7 +95,7 @@ export function LetterEditor({ initial }: { initial: Letter }) {
         className="hint underline"
         href="/studio"
         onClick={(event) => {
-          if (dirty && !window.confirm('Leave without saving your changes?'))
+          if ((dirty || musicDirty) && !window.confirm('Leave without saving your changes?'))
             event.preventDefault();
         }}
       >
@@ -98,10 +105,10 @@ export function LetterEditor({ initial }: { initial: Letter }) {
         <div>
           <h1 className="text-4xl">Make it personal</h1>
           <p className="hint mt-3">
-            {dirty ? 'You have unsaved changes.' : 'Your saved letter is private.'}
+            {dirty || musicDirty ? 'You have unsaved changes.' : 'Your saved letter is private.'}
           </p>
         </div>
-        {!dirty && !busy && !stale && (
+        {!dirty && !musicDirty && !busy && !stale && (
           <Link className="button secondary" href={`/studio/letters/${letter.id}/preview`}>
             Preview saved letter
           </Link>
@@ -136,6 +143,12 @@ export function LetterEditor({ initial }: { initial: Letter }) {
         </div>
       )}
       {readonly && <p className="notice mb-5">This published letter is read-only.</p>}
+      <SharingPanel
+        letter={letter}
+        disabled={dirty || musicDirty || busy || stale}
+        onChange={setLetter}
+        run={mutate}
+      />
       <form onSubmit={save}>
         <fieldset disabled={disabled} className="grid min-w-0 gap-6 lg:grid-cols-[1fr_320px]">
           <div className="space-y-6">
@@ -185,6 +198,13 @@ export function LetterEditor({ initial }: { initial: Letter }) {
               />
               <p className="hint mt-3">Up to 10,000 characters. A few honest words are enough.</p>
             </section>
+            <SceneTextFields
+              value={sceneText}
+              onChange={(value) => {
+                setSceneText(value);
+                changed();
+              }}
+            />
           </div>
           <aside className="space-y-6">
             <section className="panel">
@@ -299,9 +319,27 @@ export function LetterEditor({ initial }: { initial: Letter }) {
           <button className="button" disabled={disabled || !dirty}>
             {busy ? 'Working…' : 'Save changes'}
           </button>
-          <p className="hint">Sharing will be added in the next milestone.</p>
+          <p className="hint">Save before publishing. Published letters are read-only.</p>
         </div>
       </form>
+      <MusicSection
+        letter={letter}
+        disabled={busy || stale || readonly || dirty}
+        disabledReason={
+          readonly
+            ? 'Unpublish this letter before changing music.'
+            : stale
+              ? 'Reload the saved letter before changing music. Keep any unsaved changes first.'
+              : busy
+                ? 'Wait for the current change to finish.'
+                : dirty
+                  ? 'Save your letter changes before changing music.'
+                  : undefined
+        }
+        onChange={setLetter}
+        onDirty={setMusicDirty}
+        run={mutate}
+      />
       <section className="panel my-6">
         <h2 className="text-2xl">Photo memories</h2>
         <p className="hint mb-6 mt-3">

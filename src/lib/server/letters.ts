@@ -12,6 +12,8 @@ import {
   versionSchema,
 } from '@/lib/validation/letters';
 import type { Letter, LetterCard, Photo } from '@/lib/types';
+import { resolvedMusic } from '@/lib/validation/music';
+import { resolveSceneText } from '@/lib/validation/scene-text';
 
 export async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
   const { data, error } = await serviceClient().rpc(name, args);
@@ -60,7 +62,7 @@ export async function getLetter(id: string): Promise<Letter> {
   const { data: row, error } = await client
     .from('creator_letters')
     .select(
-      'id,title,recipient_display_name,body_doc,template_id,status,version,created_at,updated_at,published_at',
+      'id,title,recipient_display_name,body_doc,template_id,status,version,created_at,updated_at,published_at,presentation_config,scene_text',
     )
     .eq('id', id)
     .eq('owner_id', user.id)
@@ -75,11 +77,22 @@ export async function getLetter(id: string): Promise<Letter> {
     .order('created_at')
     .order('id');
   if (photoError) databaseError();
+  const { data: assets, error: assetError } = await client
+    .from('letter_assets')
+    .select('id,status,duration_seconds')
+    .eq('letter_id', id)
+    .limit(1);
+  if (assetError) databaseError();
   const flags = await rpc<{ verificationConfigured: boolean; passphraseRequired: boolean }>(
     'sl_gate_flags',
     { a: user.id, lid: id },
   );
   return {
+    sceneText: resolveSceneText(row.scene_text),
+    music: resolvedMusic(row.presentation_config),
+    audioAsset: assets?.[0]
+      ? { id: assets[0].id, status: assets[0].status, durationSeconds: assets[0].duration_seconds }
+      : null,
     id: row.id,
     title: row.title,
     recipientDisplayName: row.recipient_display_name,
