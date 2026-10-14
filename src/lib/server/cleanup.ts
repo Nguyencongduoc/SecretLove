@@ -17,6 +17,7 @@ type Job = {
 export async function cleanupMedia() {
   const deadline = Date.now() + 40000;
   const stale = await rpc<number>('sl_cleanup_stale');
+  await rpc<number>('sl_recovery_prune');
   let completed = 0;
   let failed = 0;
   const jobs = await rpc<Job[]>('sl_cleanup_claim_v2');
