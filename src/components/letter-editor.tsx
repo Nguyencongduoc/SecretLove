@@ -8,6 +8,8 @@ import { MessageEditor } from './message-editor';
 import { SharingPanel } from './sharing-panel';
 import { MusicSection } from './music-section';
 import { SceneTextFields } from './scene-text-fields';
+import { HeartCustomizationFields } from './heart-customization';
+import { heartCustomizationSchema } from '@/lib/validation/heart';
 export function LetterEditor({ initial }: { initial: Letter }) {
   const [letter, setLetter] = useState(initial);
   const [title, setTitle] = useState(initial.title);
@@ -15,6 +17,7 @@ export function LetterEditor({ initial }: { initial: Letter }) {
   const [body, setBody] = useState(initial.bodyDoc);
   const [template, setTemplate] = useState(initial.templateId);
   const [sceneText, setSceneText] = useState(initial.sceneText);
+  const [heartCustomization, setHeartCustomization] = useState(initial.heartCustomization);
   const [gateName, setGateName] = useState('');
   const [dob, setDob] = useState('');
   const [passAction, setPassAction] = useState('keep');
@@ -56,6 +59,11 @@ export function LetterEditor({ initial }: { initial: Letter }) {
   }
   async function save(event: React.FormEvent) {
     event.preventDefault();
+    const validatedHeart = heartCustomizationSchema.safeParse(heartCustomization);
+    if (!validatedHeart.success) {
+      setError(validatedHeart.error.issues[0].message);
+      return;
+    }
     await mutate(async () => {
       const updated = await api<Letter>(`/api/letters/${letter.id}`, 'PATCH', {
         expectedVersion: letter.version,
@@ -64,6 +72,7 @@ export function LetterEditor({ initial }: { initial: Letter }) {
         bodyDoc: body,
         templateId: template,
         sceneText,
+        heartCustomization: validatedHeart.data,
         ...(gateName || dob ? { verification: { name: gateName, dateOfBirth: dob } } : {}),
         ...(passAction === 'keep'
           ? {}
@@ -76,6 +85,7 @@ export function LetterEditor({ initial }: { initial: Letter }) {
       });
       setLetter(updated);
       setSceneText(updated.sceneText);
+      setHeartCustomization(updated.heartCustomization);
       setDirty(false);
       setGateName('');
       setDob('');
@@ -202,6 +212,14 @@ export function LetterEditor({ initial }: { initial: Letter }) {
               value={sceneText}
               onChange={(value) => {
                 setSceneText(value);
+                changed();
+              }}
+            />
+            <HeartCustomizationFields
+              value={heartCustomization}
+              sceneText={sceneText}
+              onChange={(value) => {
+                setHeartCustomization(value);
                 changed();
               }}
             />

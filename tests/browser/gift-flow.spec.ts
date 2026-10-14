@@ -32,6 +32,7 @@ test('complete UI gift with photos, music, decoded QR, every scene and real medi
     '<script>window.secretloveSceneExecuted=true</script> Em là điều đặc biệt 💗';
   const closingTitle = 'Hẹn em ở những ngày bình yên';
   const closingMessage = 'Luôn ở đây cùng em.\nCảm ơn vì đã đọc lời nhắn này 💗';
+  const ringPhrase = 'Cảm ơn vì đã xuất hiện 💗';
   let id = '',
     secondId = '';
   const privateRequests: string[] = [];
@@ -63,6 +64,13 @@ test('complete UI gift with photos, music, decoded QR, every scene and real medi
     await page.getByLabel('Heart revealed message', { exact: true }).fill(heartMessage);
     await page.getByLabel('Closing heading', { exact: true }).fill(closingTitle);
     await page.getByLabel('Closing message', { exact: true }).fill(closingMessage);
+    await page.getByRole('button', { name: 'Add ring phrase', exact: true }).click();
+    await page.getByLabel('Ring phrase 1', { exact: true }).fill(ringPhrase);
+    await page.getByRole('button', { name: 'Add ring phrase', exact: true }).click();
+    await page
+      .getByLabel('Ring phrase 2', { exact: true })
+      .fill('<script>window.bad=true</script>');
+    await page.getByLabel('Ring rotation speed').selectOption('normal');
     await page.getByRole('button', { name: 'Save changes', exact: true }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Your letter is saved.' })).toHaveText(
       'Your letter is saved.',
@@ -120,7 +128,7 @@ test('complete UI gift with photos, music, decoded QR, every scene and real medi
     await page.getByRole('link', { name: 'Preview saved letter', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Dear Synthetic gift reader,' })).toBeVisible();
     await expect(page.getByText(message)).toBeVisible();
-    await expect(page.getByRole('heading', { name: heartTitle })).toBeVisible();
+    await expect(page.locator('article').getByRole('heading', { name: heartTitle })).toBeVisible();
     await expect(page.getByRole('heading', { name: closingTitle })).toBeVisible();
     expect(await page.evaluate(() => 'secretloveSceneExecuted' in window)).toBe(false);
     await expect(page.getByRole('img')).toHaveCount(2);
@@ -169,6 +177,7 @@ test('complete UI gift with photos, music, decoded QR, every scene and real medi
     expect(await reader.content()).not.toContain('Synthetic gift reader');
     expect(await reader.content()).not.toContain(heartTitle);
     expect(await reader.content()).not.toContain(closingMessage);
+    expect(await reader.content()).not.toContain(ringPhrase);
     expect(privateRequests).toEqual([]);
     await reader.getByRole('button', { name: 'Unlock your gift', exact: true }).click();
     await reader.getByLabel('Full name').fill('Wrong synthetic name');
@@ -192,6 +201,10 @@ test('complete UI gift with photos, music, decoded QR, every scene and real medi
     expect(content.presentation.template.id).toBe(template);
     expect(content.sceneText.heart.title).toBe(heartTitle);
     expect(content.sceneText.closing.message).toBe(closingMessage);
+    expect(content.presentation.configuration.heartCustomization.textRings.phrases).toEqual([
+      ringPhrase,
+      '<script>window.bad=true</script>',
+    ]);
     await reader.getByRole('button', { name: 'Open the envelope', exact: true }).click();
     await expect
       .poll(() =>
@@ -209,6 +222,8 @@ test('complete UI gift with photos, music, decoded QR, every scene and real medi
       .toContain('rotateX(180deg)');
     await reader.getByRole('button', { name: 'Continue to the heartbeat', exact: true }).click();
     await expect(reader.getByRole('heading', { name: heartTitle })).toBeVisible();
+    await expect(reader.getByLabel('Heart ring phrases')).toContainText(ringPhrase);
+    expect(await reader.evaluate(() => 'bad' in window)).toBe(false);
     if (test.info().project.name === 'desktop') {
       const canvas = reader.locator('canvas');
       await expect(canvas).toBeVisible();
@@ -233,9 +248,7 @@ test('complete UI gift with photos, music, decoded QR, every scene and real medi
       fullPage: true,
     });
     await reader.getByRole('button', { name: 'Reveal a little message', exact: true }).click();
-    await expect(
-      reader.locator('.sl-heart-button').locator('..').getByRole('status'),
-    ).toContainText(heartMessage);
+    await expect(reader.locator('.sl-heart-scene').getByRole('status')).toContainText(heartMessage);
     expect(await reader.evaluate(() => 'secretloveSceneExecuted' in window)).toBe(false);
     await reader.getByRole('button', { name: 'Go to Memories', exact: true }).click();
     for (let i = 0; i < 2; i++) {

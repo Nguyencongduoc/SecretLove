@@ -14,6 +14,7 @@ import {
 import type { Letter, LetterCard, Photo } from '@/lib/types';
 import { resolvedMusic } from '@/lib/validation/music';
 import { resolveSceneText } from '@/lib/validation/scene-text';
+import { resolveHeart } from '@/lib/validation/heart';
 
 export async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
   const { data, error } = await serviceClient().rpc(name, args);
@@ -88,6 +89,7 @@ export async function getLetter(id: string): Promise<Letter> {
     { a: user.id, lid: id },
   );
   return {
+    heartCustomization: resolveHeart(row.presentation_config?.heartCustomization),
     sceneText: resolveSceneText(row.scene_text),
     music: resolvedMusic(row.presentation_config),
     audioAsset: assets?.[0]

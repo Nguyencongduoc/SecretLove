@@ -1,6 +1,6 @@
 # SecretLove — API Contracts
 
-Status: Creator/auth/photo, publication/recipient and the authorized private music extension are implemented. All paths are same-origin through a server-only DAL. `GET /api/letters` returns at most 20 active owner cards with `nextCursor` null. Templates remain trusted; only approved V1 music settings are editable. See DAY2_TEST_REPORT.md and MUSIC_TEST_REPORT.md for evidence.
+Status: Creator/auth/photo, publication/recipient and the authorized private music extension are implemented. All paths are same-origin through a server-only DAL. `GET /api/letters` returns at most 20 active owner cards with `nextCursor` null. Templates remain trusted; approved V1 music and bounded particle-heart settings plus protected scene copy are editable. See DAY2_TEST_REPORT.md and MUSIC_TEST_REPORT.md for evidence.
 
 Implemented auth mutations: `POST /api/auth/login`, `/signup`, `/recover`, `/reset`, `/logout`; email confirmation/recovery uses `GET /auth/callback`. `GET /api/cron/cleanup` is a separate server bearer-authorized maintenance route, with aggregate counts only. Owner photo mutations return updated string versions; removal/deletion reports pending physical cleanup. See SETUP.md for required configuration.
 
@@ -183,3 +183,10 @@ All music mutations enforce Origin, owner, draft, expected version and rate limi
 PATCH /api/letters/{id} adds optional sceneText (strict heart/closing object, or null to reset) alongside expectedVersion. Omitting it preserves customization. Subtitle <=80, heading <=160, invitation <=240, revealed/closing message <=500; plain non-empty strings, <=8 KiB. Owner Letter DTO and authorized recipient content include resolved sceneText. It is absent from bootstrap/metadata. Existing ownership/draft/version/Origin/rate policies apply; no new public endpoint. See SCENE_TEXT_SETUP.md for JSON and migration 005.
 
 Music configuration wire shape remains V1 with startPolicy=manual for interaction-initiated gifts. The latest request replaces separate recipient Play controls with an attempt after authorized unlock/resume and synchronous retry on envelope/scene interaction if blocked. Recipient playback controls are omitted; creator audition unchanged. This does not grant media access, bypass browser permissions, force continuous playback or change backend asset/session requirements.
+
+
+## Particle-heart customization — latest authorized extension
+
+PATCH /api/letters/{id}: optional nullable heartCustomization plus existing expectedVersion; strict inner V1 object described in PARTICLE_HEART_SETUP.md. Omitting preserves it; null resets only heart appearance/rings. No generic config writer or new endpoint. Owner/draft/version/Origin/rate checks unchanged. Invalid phrases/presets/unknown keys/oversized payload return existing validation errors; unauthorized creator gets unchanged 404/401 semantics.
+
+Owner Letter DTO now includes resolved heartCustomization; recipient presentation.configuration.heartCustomization is derived only from the authorized content response. Bootstrap/locked page/metadata/dashboard cards omit phrases. Literal text/glyph rendering does not interpret scripts. Music upload/settings/remove preserve customization; heart saves preserve music. Published content stays frozen, republish keeps existing rotation/revocation behavior. Schema/template version and concurrency/access versions remain distinct.

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { heartCustomizationSchema } from '@/lib/validation/heart';
 
 const id = z.string().regex(/^[a-z][a-z0-9-]{0,47}$/);
 const color = z
@@ -49,6 +50,7 @@ const override = z.discriminatedUnion('kind', [
 export const letterConfigurationV1Schema = z
   .strictObject({
     schemaVersion: z.literal(1),
+    heartCustomization: heartCustomizationSchema.nullable().optional(),
     theme: z
       .strictObject({
         colors: z

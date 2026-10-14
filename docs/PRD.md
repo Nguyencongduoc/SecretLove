@@ -1,6 +1,6 @@
 # SecretLove — MVP Product Requirements
 
-Status: Day 1 Creator Studio and Day 2 recipient journey are implemented. The latest user instruction additionally authorizes private background MP3 uploads and playback as a Day 2 extension. Theme/background/animation editors remain deferred; bounded Heart/Closing plain-text copy is now explicitly authorized. Historical results are in DAY2_TEST_REPORT.md; current music evidence is in MUSIC_TEST_REPORT.md and TASKS.md.
+Status: Day 1 Creator Studio and Day 2 recipient journey are implemented. The latest user instruction additionally authorizes private background MP3 uploads and playback as a Day 2 extension. Broader theme/background/animation editors remain deferred; protected Heart/Closing copy and the bounded particle-heart/text-ring subset are explicitly authorized. Historical results are in DAY2_TEST_REPORT.md; current music evidence is in MUSIC_TEST_REPORT.md and TASKS.md.
 Planning date: 2026-10-14 (Asia/Bangkok). The three implementation days start after approval and environment readiness.
 
 ## 1. Product and objective
@@ -149,3 +149,14 @@ Remaining phases: P1 themes/layout/effects/closing content/templates, P2 private
 - Historical P2 proposal: one active background and one active track per letter (pending reservations count), initially MP3 <=3 MiB/180 seconds. The later full-song request authorizes audio <=16 MiB/360 seconds only; background assets remain deferred. Default volume 0.35, manual start and looping off; replacement requires detaching the current slot first.
 - Initial MP3 inspection/metadata-removal, rights reminder and aggregate quotas are implemented as documented in MUSIC_SETUP.md. Deployed resource budget and browser acceptance remain release gates; broader formats need a new design.
 - Approve supported desktop/mobile browsers and the device-volume fallback where programmatic volume is unavailable; approve the trusted font/template/layout/effect catalog before enabling those controls.
+
+
+## 10. Approved Day 2 particle-heart extension
+
+The latest user request explicitly authorizes an original procedural volumetric particle heart and bounded 3D customization, superseding the earlier solid-heart and deferred P3 subset descriptions. It does not authorize Day 3, broader themes, drag-and-drop, creator shaders/models/fonts, deployment or a general animation editor.
+
+Requirements: reference-like black cosmic stage, glowing pink particle sculpture, sparse stars, gentle heartbeat/float, tilted rotating 3D phrases underneath, desktop/portrait framing. Retain message reveal, every reading scene, protected access and the current continuous background soundtrack. Creator preview controls remain; recipient playback controls stay absent under the latest soundtrack requirement, superseding the older pasted regression checklist.
+
+Studio offers up to five Vietnamese/English phrases (1–60 NFC Unicode code points each), add/remove/count validation, pink/red/purple color, slow/normal/fast rotation, enabled rings and reset. Empty phrase array uses defaults. Explicit unsaved actual-scene preview and saved owner preview reuse HeartScene. Shared Save must normalize values, persist/reload and become clean; publication freezes the version, unpublish before editing. Reset does not erase unrelated content/music.
+
+Acceptance: inspect/extract video frames; compare real rendered screenshots; exercise desktop and animated portrait plus reduced-motion/context-failure fallbacks; verify message reveal/keyboard/navigation and audio continuity. Oversized/unknown configuration denied server-side; protected phrases absent while locked and cross-letter/owner access denied. Record performance/resource measurements and actual PASS/FAIL/NOT TESTED separately. No claim of exact identity to the reference or uniform hardware frame rate.

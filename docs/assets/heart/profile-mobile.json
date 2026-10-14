@@ -1,0 +1,9 @@
+{
+  "particles": "6000",
+  "drawCalls": "7",
+  "geometries": "7",
+  "textures": "3",
+  "frames": 95,
+  "medianMs": 16.699999999999818,
+  "p95Ms": 16.700000000000728
+}

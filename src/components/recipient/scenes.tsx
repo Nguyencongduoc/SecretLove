@@ -7,6 +7,7 @@ import { RichText } from '@/components/rich-text';
 import type { SceneProps } from '@/lib/experience/types';
 import type { SceneKind, SceneSpec } from '@/lib/experience/configuration';
 import { StaticHeart } from './decorations';
+import { resolveHeart, ringPhrases } from '@/lib/validation/heart';
 const HeartCanvas = dynamic(() => import('./heart-canvas'), {
   ssr: false,
   loading: () => <StaticHeart />,
@@ -63,35 +64,50 @@ function EnvelopeScene({ content, reducedMotion, next, interact }: SceneProps<'e
     </div>
   );
 }
-function HeartScene({
-  content,
-  options,
-  reducedMotion,
-  mediaError,
-  interact,
-}: SceneProps<'heart'>) {
+export function HeartScene({ content, reducedMotion, mediaError, interact }: SceneProps<'heart'>) {
   const [revealed, setRevealed] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const config = resolveHeart(content.presentation.configuration.heartCustomization);
+  const reveal = () => {
+    interact();
+    setRevealed(true);
+  };
   return (
-    <div className="sl-scene sl-centered">
+    <div
+      className="sl-scene sl-centered sl-heart-scene"
+      data-heart-mode={reducedMotion ? 'reduced-motion' : failed ? 'unavailable' : 'animated'}
+    >
       <p className="sl-eyebrow break-words">{content.sceneText.heart.eyebrow}</p>
       <h1 className="break-words">{content.sceneText.heart.title}</h1>
-      <button
-        className="sl-heart-button"
-        aria-label="Reveal a little message"
-        onClick={() => {
-          interact();
-          setRevealed(true);
-        }}
-      >
-        {reducedMotion ? (
+      <div className="sl-heart-viewport">
+        {reducedMotion || failed ? (
           <StaticHeart />
         ) : (
           <HeartCanvas
-            scale={options.scale}
-            color={options.color ?? '#e38aa9'}
-            onFailure={mediaError}
+            config={config}
+            onReveal={reveal}
+            onFailure={() => {
+              setFailed(true);
+              mediaError();
+            }}
           />
         )}
+      </div>
+      <ul
+        className={reducedMotion || failed ? 'sl-static-ring-phrases' : 'sr-only'}
+        aria-label="Heart ring phrases"
+      >
+        {ringPhrases(config).map((phrase, index) => (
+          <li key={index}>{phrase}</li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        className="sl-link-button sl-heart-reveal"
+        aria-label="Reveal a little message"
+        onClick={reveal}
+      >
+        Touch the heart · reveal a message
       </button>
       <p className="sl-copy whitespace-pre-line break-words" role="status">
         {revealed ? content.sceneText.heart.message : content.sceneText.heart.prompt}

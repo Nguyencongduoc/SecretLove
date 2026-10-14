@@ -197,7 +197,7 @@ export function RecipientExperience({ shareToken }: { shareToken: string }) {
   return (
     <MotionConfig reducedMotion="user">
       <main
-        className="sl-experience"
+        className={`sl-experience${phase === 'active' && scene?.kind === 'heart' ? ' sl-cosmic' : ''}`}
         style={
           content
             ? ({
@@ -207,7 +207,7 @@ export function RecipientExperience({ shareToken }: { shareToken: string }) {
             : undefined
         }
       >
-        <Decorations />
+        {!(phase === 'active' && scene?.kind === 'heart') && <Decorations />}
         <header className="sl-header">
           <Link href="/" prefetch={false} className="sl-brand">
             <Heart size={18} strokeWidth={1.2} /> SecretLove
