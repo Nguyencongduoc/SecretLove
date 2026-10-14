@@ -639,3 +639,78 @@
   outline: 2px solid #dda7b4;
   outline-offset: 4px;
 }
+
+/* Authorized particle-heart scene only; other gift scenes keep their existing styling. */
+.sl-cosmic {
+  background: #000;
+}
+.sl-cosmic .sl-stage {
+  max-width: none;
+  padding-top: 0.7rem;
+}
+.sl-cosmic .sl-progress {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.sl-cosmic .sl-header {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+.sl-cosmic .sl-heart-scene h1 {
+  font-size: clamp(1.2rem, 2vw, 1.8rem);
+  margin-bottom: 0.2rem;
+  padding-inline: 1rem;
+}
+.sl-cosmic .sl-heart-scene .sl-eyebrow {
+  margin: 0.8rem 0 0.4rem;
+}
+.sl-heart-viewport {
+  width: 100%;
+  height: clamp(380px, calc(100svh - 285px), 820px);
+  position: relative;
+}
+.sl-heart-viewport svg {
+  width: min(60%, 290px);
+  height: 100%;
+  margin: auto;
+}
+.sl-heart-reveal {
+  margin: 0 auto;
+  min-height: 44px;
+}
+.sl-heart-scene .sl-copy {
+  margin: 0.4rem auto 1rem;
+  padding-inline: 1rem;
+}
+.sl-static-ring-phrases {
+  padding: 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.8rem;
+  list-style: none;
+  color: #f5d8e5;
+  font-size: 0.85rem;
+}
+.sl-static-ring-phrases li {
+  overflow-wrap: anywhere;
+}
+.sl-cosmic .sl-navigation {
+  max-width: 900px;
+  margin-inline: auto;
+}
+.sl-owner-heart-preview {
+  min-height: 0;
+  border-radius: 1rem;
+}
+.sl-owner-heart-preview .sl-heart-viewport {
+  height: 460px;
+}
+@media (max-width: 600px) {
+  .sl-cosmic .sl-stage {
+    padding-inline: 0.5rem;
+  }
+  .sl-owner-heart-preview .sl-heart-viewport {
+    height: 390px;
+  }
+}

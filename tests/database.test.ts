@@ -3,6 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFile } from 'node:fs/promises';
 import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { DEFAULT_SCENE_TEXT } from '@/lib/validation/scene-text';
+import { DEFAULT_HEART } from '@/lib/validation/heart';
 let db: PGlite;
 let preUpgradeLetter: { owner: string; id: string };
 async function call<T = Record<string, unknown>>(name: string, args: unknown[]): Promise<T> {
@@ -30,6 +31,77 @@ async function asRole<T>(role: string, id: string, run: () => Promise<T>) {
   }
 }
 describe('private music transactions and mixed cleanup workers', () => {
+  it('persists protected heart settings across music mutations and rejects ownership/version/published/shape violations', async () => {
+    const owner = await creator(),
+      other = await creator(),
+      id = await letter(owner);
+    const config = {
+      ...DEFAULT_HEART,
+      textRings: {
+        enabled: true,
+        phrases: ['Cảm ơn vì đã xuất hiện', '<script>bad()</script>'],
+        rotationSpeed: 'normal',
+      },
+    };
+    await call('sl_save_letter', [owner, id, '1', { heartCustomization: config }]);
+    await call('sl_save_letter', [owner, id, '2', { title: 'Old Save' }]);
+    const read = async () =>
+      (
+        await db.query<{ presentation_config: { heartCustomization: unknown; music: unknown } }>(
+          'select presentation_config from public.letters where id=$1',
+          [id],
+        )
+      ).rows[0].presentation_config;
+    expect((await read()).heartCustomization).toEqual(config);
+    await expect(
+      call('sl_save_letter', [other, id, '3', { heartCustomization: null }]),
+    ).rejects.toThrow('NOT_FOUND');
+    await expect(
+      call('sl_save_letter', [owner, id, '2', { heartCustomization: null }]),
+    ).rejects.toThrow('VERSION_CONFLICT');
+    for (const invalid of [
+      { ...config, script: 'bad' },
+      { ...config, textRings: { ...config.textRings, phrases: ['x'.repeat(61)] } },
+      { ...config, heart: { style: 'procedural-particle', color: 'url(evil)' } },
+      { ...config, textRings: { ...config.textRings, phrases: Array(6).fill('x') } },
+      { ...config, textRings: { ...config.textRings, phrases: [''] } },
+    ])
+      await expect(
+        call('sl_save_letter', [owner, id, '3', { heartCustomization: invalid }]),
+      ).rejects.toThrow('check constraint');
+    await asRole('authenticated', other, async () =>
+      expect(
+        (await db.query('select presentation_config from public.creator_letters where id=$1', [id]))
+          .rows,
+      ).toHaveLength(0),
+    );
+    const aid = randomUUID();
+    await call('sl_audio_reserve', [owner, id, '3', aid, 100, 1]);
+    await call('sl_audio_finalize', [owner, id, aid, '4']);
+    expect((await read()).heartCustomization).toEqual(config);
+    const music = {
+      enabled: true,
+      assetId: aid,
+      defaultVolume: 0.4,
+      loop: true,
+      startPolicy: 'manual',
+    };
+    await call('sl_music_settings', [owner, id, '5', music]);
+    await call('sl_save_letter', [owner, id, '6', { heartCustomization: null }]);
+    expect((await read()).music).toEqual(music);
+    expect((await read()).heartCustomization).toBeNull();
+    await call('sl_save_letter', [owner, id, '7', { heartCustomization: config }]);
+    await call('sl_music_remove', [owner, id, '8']);
+    expect((await read()).heartCustomization).toEqual(config);
+    await db.query("update public.letters set status='published',published_at=now() where id=$1", [
+      id,
+    ]);
+    await expect(
+      call('sl_save_letter', [owner, id, '9', { heartCustomization: null }]),
+    ).rejects.toThrow('LETTER_PUBLISHED');
+    await call('sl_delete_letter', [owner, id, '9']);
+    expect(await read()).toBeNull();
+  });
   it('saves private scene text with ownership/version/freeze checks and preserves omitted fields', async () => {
     const owner = await creator(),
       id = await letter(owner),
@@ -98,6 +170,10 @@ describe('private music transactions and mixed cleanup workers', () => {
         },
         gate: { nonce, digest: randomBytes(32).toString('base64') },
         sceneText: copy,
+        heartCustomization: {
+          ...DEFAULT_HEART,
+          textRings: { ...DEFAULT_HEART.textRings, phrases: ['Private Vietnamese 💗'] },
+        },
       },
     ]);
     const share = randomBytes(32).toString('base64'),
@@ -108,6 +184,14 @@ describe('private music transactions and mixed cleanup workers', () => {
     expect(
       (await call<{ sceneText: unknown }>('sl_recipient_content', [share, session])).sceneText,
     ).toEqual(copy);
+    expect(
+      (
+        await call<{ presentationConfig: { heartCustomization: unknown } }>(
+          'sl_recipient_content',
+          [share, session],
+        )
+      ).presentationConfig.heartCustomization,
+    ).toMatchObject({ textRings: { phrases: ['Private Vietnamese 💗'] } });
     await call('sl_unpublish', [owner, id, '3']);
     await call('sl_save_letter', [owner, id, '4', { sceneText: null }]);
     expect(
@@ -510,6 +594,7 @@ beforeAll(async () => {
     ).rows[0],
   ).toEqual({ status: 'ready', byte_size: 100, duration_seconds: 30 });
   await db.exec(await readFile('supabase/migrations/202610140005_scene_text.sql', 'utf8'));
+  await db.exec(await readFile('supabase/migrations/202610140006_particle_heart.sql', 'utf8'));
   expect(
     (
       await db.query('select presentation_config,version from public.letters where id=$1', [

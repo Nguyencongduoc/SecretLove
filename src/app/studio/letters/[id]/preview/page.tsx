@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getLetter } from '@/lib/server/letters';
 import { pageData } from '@/lib/server/pages';
 import { RichText } from '@/components/rich-text';
+import { HeartPreview } from '@/components/heart-customization';
 export default async function Preview({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const letter = await pageData(() => getLetter(id));
@@ -60,6 +61,10 @@ export default async function Preview({ params }: { params: Promise<{ id: string
           <p className="whitespace-pre-line break-words">{letter.sceneText.closing.message}</p>
         </section>
       </article>
+      <section className="mt-8">
+        <h2 className="text-center text-2xl mb-5">Saved 3D heart preview</h2>
+        <HeartPreview value={letter.heartCustomization} sceneText={letter.sceneText} />
+      </section>
     </main>
   );
 }

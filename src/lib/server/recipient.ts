@@ -1,4 +1,5 @@
 import 'server-only';
+import { resolveHeart } from '@/lib/validation/heart';
 import { resolveSceneText } from '@/lib/validation/scene-text';
 import { resolvedMusic } from '@/lib/validation/music';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
@@ -142,6 +143,9 @@ export async function recipientContent(share: string, request: Request): Promise
   const { presentationConfig, ...content } = data;
   const presentation = resolveLegacyPresentation(data.templateId);
   presentation.configuration.music = resolvedMusic(presentationConfig);
+  presentation.configuration.heartCustomization = resolveHeart(
+    (presentationConfig as { heartCustomization?: unknown } | null)?.heartCustomization,
+  );
   return { ...content, sceneText: resolveSceneText(data.sceneText), presentation };
 }
 export async function recipientAudio(share: string, assetId: string, request: Request) {

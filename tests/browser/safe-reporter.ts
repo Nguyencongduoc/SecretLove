@@ -2,6 +2,15 @@ import type { Reporter, TestCase, TestResult, FullResult } from '@playwright/tes
 import { mkdirSync, writeFileSync } from 'node:fs';
 // Keep passwords, provider callback tokens and request bodies out of terminal diagnostics.
 export default class SafeReporter implements Reporter {
+  onStdOut(chunk: string | Buffer) {
+    const text = chunk.toString();
+    if (
+      /^(Heart preview mode:|Browser motion query:|Heart console category:|Heart browser runtime error:|Heart synthetic letter cleanup pending|Heart diagnostic:)/.test(
+        text,
+      )
+    )
+      process.stdout.write(text);
+  }
   passed = 0;
   skipped = 0;
   failed = 0;

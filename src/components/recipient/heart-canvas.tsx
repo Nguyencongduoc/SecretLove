@@ -1,39 +1,149 @@
 'use client';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { ExtrudeGeometry, Shape, Mesh } from 'three';
-import { useEffect, useMemo, useRef, Component, type ReactNode } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import {
+  NormalBlending,
+  BufferAttribute,
+  BufferGeometry,
+  Color,
+  Group,
+  ShaderMaterial,
+} from 'three';
+import { Component, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { HEART_COLORS, ringPhrases, type HeartCustomization } from '@/lib/validation/heart';
+import { heartbeat, sampleHeart, sampleStars, seededRandom } from '@/lib/experience/particle-heart';
+import { TextRing } from './text-ring';
 import { StaticHeart } from './decorations';
-function HeartMesh({ scale, color }: { scale: number; color: string }) {
-  const ref = useRef<Mesh>(null);
-  const geometry = useMemo(() => {
-    const shape = new Shape();
-    shape.moveTo(0, 0.65);
-    shape.bezierCurveTo(-0.55, 1.65, -1.9, 1.25, -1.55, 0.15);
-    shape.bezierCurveTo(-1.3, -0.6, -0.45, -1.05, 0, -1.5);
-    shape.bezierCurveTo(0.45, -1.05, 1.3, -0.6, 1.55, 0.15);
-    shape.bezierCurveTo(1.9, 1.25, 0.55, 1.65, 0, 0.65);
-    return new ExtrudeGeometry(shape, {
-      depth: 0.45,
-      bevelEnabled: true,
-      bevelThickness: 0.15,
-      bevelSize: 0.14,
-      bevelSegments: 3,
-      steps: 1,
-      curveSegments: 24,
+
+function Sculpture({
+  config,
+  reveal,
+  fail,
+}: {
+  config: HeartCustomization;
+  reveal(): void;
+  fail(): void;
+}) {
+  const { size, camera, gl } = useThree();
+  const mobile = size.width < 600;
+  const count = mobile ? 6000 : 11000;
+  const heart = useRef<Group>(null),
+    started = useRef<number | null>(null);
+  const shader = useRef<ShaderMaterial>(null);
+  const frames = useRef(0);
+  const resources = useMemo(() => {
+    const samples = sampleHeart(count);
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new BufferAttribute(samples.positions, 3));
+    geometry.setAttribute('aPhase', new BufferAttribute(samples.phases, 1));
+    const material = new ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uColor: { value: new Color(HEART_COLORS[config.heart.color]) },
+        uDpr: { value: gl.getPixelRatio() },
+      },
+      transparent: true,
+      depthWrite: false,
+      blending: NormalBlending,
+      vertexShader: `attribute float aPhase; uniform float uTime; uniform float uDpr; varying float brightness;
+        void main(){ vec4 p=modelViewMatrix*vec4(position,1.); gl_Position=projectionMatrix*p;
+        gl_PointSize=clamp((22.+4.*sin(aPhase))*uDpr/-p.z,1.,5.);
+        brightness=.72+.24*sin(aPhase+uTime*.65); }`,
+      fragmentShader: `uniform vec3 uColor; varying float brightness;
+        void main(){ float d=length(gl_PointCoord-.5)*2.; if(d>1.) discard;
+        float a=(1.-smoothstep(.15,1.,d))*brightness; gl_FragColor=vec4(uColor,a);
+        #include <colorspace_fragment>
+        }`,
     });
-  }, []);
-  useEffect(() => () => geometry.dispose(), [geometry]);
+    const stars = new BufferGeometry();
+    stars.setAttribute('position', new BufferAttribute(sampleStars(mobile ? 250 : 450), 3));
+    const dust = new BufferGeometry(),
+      positions = new Float32Array((mobile ? 300 : 600) * 3),
+      random = seededRandom(901);
+    for (let i = 0; i < positions.length / 3; i++) {
+      const a = random() * Math.PI * 2,
+        r = Math.sqrt(random()) * 2.2;
+      positions.set([Math.cos(a) * r, -1.5 + (random() - 0.5) * 0.26, Math.sin(a) * r], i * 3);
+    }
+    dust.setAttribute('position', new BufferAttribute(positions, 3));
+    return { geometry, material, stars, dust };
+  }, [count, config.heart.color, gl, mobile]);
+  useEffect(
+    () => () => Object.values(resources).forEach((resource) => resource.dispose()),
+    [resources],
+  );
+  useEffect(() => {
+    const aspect = Math.max(size.width / size.height, 0.25);
+    const distance = Math.max(8.7, 5.05 / (2 * Math.tan((20 * Math.PI) / 180) * aspect));
+    camera.position.set(0, distance * 0.24, distance);
+    camera.lookAt(0, 0.0, 0);
+    camera.updateProjectionMatrix();
+    gl.domElement.setAttribute('data-particles', String(count));
+  }, [camera, count, gl, size]);
+  useEffect(() => {
+    const lost = (event: Event) => {
+      event.preventDefault();
+      fail();
+    };
+    gl.domElement.addEventListener('webglcontextlost', lost);
+    return () => gl.domElement.removeEventListener('webglcontextlost', lost);
+  }, [fail, gl]);
   useFrame(({ clock, pointer }) => {
-    if (!ref.current) return;
-    const beat = Math.pow((Math.sin(clock.elapsedTime * 3.4) + 1) / 2, 6);
-    ref.current.scale.setScalar(scale * (1 + beat * 0.06));
-    ref.current.rotation.y = pointer.x * 0.15 + Math.sin(clock.elapsedTime * 0.35) * 0.08;
-    ref.current.rotation.x = -pointer.y * 0.08;
+    // Aggregate diagnostics contain counts only, never private phrases.
+    if (++frames.current % 30 === 0) {
+      gl.domElement.setAttribute('data-draw-calls', String(gl.info.render.calls));
+      gl.domElement.setAttribute('data-geometries', String(gl.info.memory.geometries));
+      gl.domElement.setAttribute('data-textures', String(gl.info.memory.textures));
+    }
+    started.current ??= clock.elapsedTime;
+    const time = clock.elapsedTime - started.current;
+    if (shader.current) shader.current.uniforms.uTime.value = time;
+    if (heart.current) {
+      const entrance = 1 - Math.exp(-time * 2.6);
+      heart.current.scale.setScalar((0.94 + 0.06 * entrance) * heartbeat(time));
+      heart.current.position.y = 0.85 + Math.sin(time * 0.65) * 0.065;
+      heart.current.rotation.y = Math.sin(time * 0.22) * 0.055 + pointer.x * 0.045;
+      heart.current.rotation.x = 0.1 - pointer.y * 0.025;
+    }
   });
   return (
-    <mesh ref={ref} geometry={geometry} position={[0, 0, -0.2]}>
-      <meshStandardMaterial color={color} metalness={0.22} roughness={0.27} />
-    </mesh>
+    <>
+      <points geometry={resources.stars}>
+        <pointsMaterial
+          color="#dddbe9"
+          size={0.012}
+          sizeAttenuation
+          transparent
+          opacity={0.65}
+          depthWrite={false}
+        />
+      </points>
+      <points geometry={resources.dust}>
+        <pointsMaterial color="#d7a5bc" size={0.014} transparent opacity={0.3} depthWrite={false} />
+      </points>
+      <group ref={heart} position={[0, 0.85, 0]}>
+        <points geometry={resources.geometry}>
+          <primitive ref={shader} object={resources.material} attach="material" />
+        </points>
+        <mesh
+          onClick={(event) => {
+            event.stopPropagation();
+            reveal();
+          }}
+          scale={[1.45, 1.45, 0.85]}
+        >
+          <sphereGeometry args={[1, 16, 12]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
+        </mesh>
+      </group>
+      {ringPhrases(config).map((phrase, index) => (
+        <TextRing
+          key={`${index}:${phrase}`}
+          phrase={phrase}
+          index={index}
+          speed={config.textRings.rotationSpeed}
+        />
+      ))}
+    </>
   );
 }
 class HeartBoundary extends Component<
@@ -52,27 +162,25 @@ class HeartBoundary extends Component<
   }
 }
 export default function HeartCanvas({
-  scale,
-  color,
+  config,
+  onReveal,
   onFailure,
 }: {
-  scale: number;
-  color: string;
+  config: HeartCustomization;
+  onReveal(): void;
   onFailure(): void;
 }) {
   return (
     <HeartBoundary onFailure={onFailure}>
       <Canvas
         aria-hidden="true"
-        camera={{ position: [0, 0, 6], fov: 40 }}
+        camera={{ position: [0, 2.1, 8.7], fov: 40 }}
         dpr={[1, 1.5]}
-        gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }}
+        gl={{ antialias: false, alpha: false, powerPreference: 'low-power' }}
         fallback={<StaticHeart />}
       >
-        <ambientLight intensity={1.2} />
-        <directionalLight position={[3, 4, 5]} intensity={3} />
-        <pointLight position={[-3, -1, 3]} intensity={12} color="#ffacc9" />
-        <HeartMesh scale={scale} color={color} />
+        <color attach="background" args={['#000000']} />
+        <Sculpture config={config} reveal={onReveal} fail={onFailure} />
       </Canvas>
     </HeartBoundary>
   );
