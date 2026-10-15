@@ -4,10 +4,14 @@ import { audioResponse, AUDIO_STREAM_TIMEOUT_MS } from '@/lib/server/audio-respo
 const path = `${randomUUID()}/${randomUUID()}/${randomUUID()}.mp3`;
 const responses: Response[] = [];
 const fetchMock = vi.fn();
+// Inert test fixtures, never real Supabase credentials.
+const modernKey = 'sb_secret_test_only_not_a_real_credential';
+const legacyKey =
+  'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.test-only-invalid-signature';
 beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://storage.example.invalid');
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'public-test-key');
-  vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'server-test-key');
+  vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', modernKey);
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockReset();
 });
@@ -79,7 +83,8 @@ it('streams above 4.5 MB before later chunks exist, with backpressure and no pub
   expect(new URL(url).origin).toBe('https://storage.example.invalid');
   expect(options.redirect).toBe('manual');
   expect(options.cache).toBe('no-store');
-  expect(options.headers.Authorization).toBe('Bearer server-test-key');
+  expect(options.headers.apikey).toBe(modernKey);
+  expect(options.headers).not.toHaveProperty('Authorization');
 });
 it('forwards only the canonical bounded range and validates upstream selection', async () => {
   fetchMock.mockResolvedValue(upstream(4, undefined, 'bytes 6-9/10'));
@@ -88,7 +93,8 @@ it('forwards only the canonical bounded range and validates upstream selection',
   expect(response.headers.get('content-range')).toBe('bytes 6-9/10');
   expect((await response.arrayBuffer()).byteLength).toBe(4);
   expect(fetchMock.mock.calls[0][1].headers.Range).toBe('bytes=6-9');
-  expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer server-test-key');
+  expect(fetchMock.mock.calls[0][1].headers.apikey).toBe(modernKey);
+  expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty('Authorization');
   fetchMock.mockResolvedValue(upstream(4, undefined, 'bytes 0-3/10'));
   await expect(run(request({ range: 'bytes=6-9' }))).rejects.toMatchObject({ status: 503 });
 });
@@ -177,3 +183,60 @@ it('cancels when the requester aborts and denies already aborted requests withou
   later.abort();
   await expect(response.arrayBuffer()).rejects.toThrow('Private music transfer interrupted.');
 });
+
+it.each([
+  { kind: 'modern', key: modernKey, bearer: null },
+  { kind: 'legacy JWT', key: legacyKey, bearer: `Bearer ${legacyKey}` },
+])(
+  'uses supported $kind headers for private GET/Range without exposing credentials',
+  async ({ key, bearer }) => {
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', key);
+    for (const range of [undefined, 'bytes=2-5']) {
+      fetchMock.mockResolvedValueOnce(
+        upstream(range ? 4 : 10, undefined, range ? 'bytes 2-5/10' : undefined),
+      );
+      const response = await run(
+        request({
+          ...(range ? { range } : {}),
+          authorization: 'Bearer caller-token-must-not-be-forwarded',
+          apikey: 'caller-key-must-not-be-forwarded',
+          cookie: 'caller-cookie-must-not-be-forwarded',
+        }),
+      );
+      expect(response.status).toBe(range ? 206 : 200);
+      const [url, options] = fetchMock.mock.calls.at(-1)!;
+      expect(new URL(url).pathname).toBe(`/storage/v1/object/authenticated/letter-assets/${path}`);
+      const sent = new Headers(options.headers);
+      expect(sent.get('apikey')).toBe(key);
+      expect(sent.get('authorization')).toBe(bearer);
+      expect(sent.get('cookie')).toBeNull();
+      expect(sent.get('range')).toBe(range ?? null);
+      expect(sent.get('accept-encoding')).toBe('identity');
+      const delivered = `${JSON.stringify([...response.headers])}${await response.text()}`;
+      for (const privateValue of [
+        key,
+        path,
+        'storage.example.invalid',
+        'caller-token-must-not-be-forwarded',
+      ])
+        expect(delivered).not.toContain(privateValue);
+      expect(response.headers.get('location')).toBeNull();
+      expect(response.headers.get('content-length')).toBeNull();
+    }
+    fetchMock.mockClear();
+    const head = await run(
+      new Request('https://letter.invalid/audio', {
+        method: 'HEAD',
+        headers: { range: 'bytes=2-5' },
+      }),
+    );
+    expect(head.status).toBe(206);
+    expect(head.headers.get('content-length')).toBe('4');
+    expect(head.body).toBeNull();
+    const invalid = await run(request({ range: 'bytes=10-' }));
+    expect(invalid.status).toBe(416);
+    expect(invalid.headers.get('content-range')).toBe('bytes */10');
+    expect(invalid.body).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  },
+);

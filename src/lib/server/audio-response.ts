@@ -73,7 +73,9 @@ export async function audioResponse(request: Request, asset: AudioObject) {
       {
         headers: {
           apikey: key,
-          Authorization: `Bearer ${key}`,
+          // Modern API keys are opaque credentials, not JWT bearer tokens.
+          // Keep the JWT header only for legacy service_role compatibility.
+          ...(!key.startsWith('sb_secret_') ? { Authorization: `Bearer ${key}` } : {}),
           'Accept-Encoding': 'identity',
           ...(range ? { Range: `bytes=${start}-${end}` } : {}),
         },

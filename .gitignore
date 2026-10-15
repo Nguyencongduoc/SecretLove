@@ -1,5 +1,6 @@
 node_modules/
-.test-fixtures.json
+.test-fixtures*.json
+.auth/
 .next/
 .env*
 !.env.example
@@ -8,3 +9,6 @@ coverage/
 *.tsbuildinfo
 test-results/
 playwright-report/
+.vercel
+# Operator-local, superseded account-specific fixture plan; never commit.
+docs/MODERN_STORAGE_FIXTURE_PLAN.md

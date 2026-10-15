@@ -1,0 +1,23 @@
+# Local credentials and fixture inventories; hosting supplies environment values.
+.env*
+/.npmrc
+/.test-fixtures*.json
+/.auth
+
+# Local dependencies, generated output and audit/test artifacts.
+/.git
+/.vercel
+/node_modules
+/.next
+/.pnpm-store
+/test-results
+/playwright-report
+/coverage
+*.log
+*.tsbuildinfo
+
+# Internal reports/plans and visual reference inputs are not runtime assets.
+/docs
+/references
+/AGENTS.md
+/TASKS.md
