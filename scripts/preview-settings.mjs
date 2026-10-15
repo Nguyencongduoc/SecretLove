@@ -1,6 +1,24 @@
 /** @param {Record<string, string | undefined>} env */
 export function previewProblem(env) {
-  if (env.VERCEL !== '1' || env.VERCEL_ENV !== 'preview') return 'PREVIEW_BUILD_ONLY';
+  // Production is allowed only for this explicitly opted-in, protected test deployment.
+  // Platform Authentication/owner membership must still be verified outside this guard.
+  const ownerReview = env.SECRETLOVE_DEPLOYMENT_MODE === 'owner-only-review';
+  if (env.VERCEL !== '1') return 'PREVIEW_BUILD_ONLY';
+  if (ownerReview) {
+    if (env.VERCEL_ENV !== 'production' || env.VERCEL_TARGET_ENV !== 'production')
+      return 'OWNER_REVIEW_PRODUCTION_CONTEXT_REQUIRED';
+    if (env.VERCEL_PROJECT_ID !== 'prj_TH2Qq194T1GbYwRUJ0n7DfR7MXYK')
+      return 'OWNER_REVIEW_PROJECT_REQUIRED';
+    if (env.PREVIEW_SUPABASE_PROJECT_REF !== 'samelfoyrujhcywcnofw')
+      return 'OWNER_REVIEW_ISOLATED_PROJECT_REQUIRED';
+    if (env.APP_ORIGIN !== 'https://secretlove-preview.vercel.app')
+      return 'OWNER_REVIEW_ORIGIN_REQUIRED';
+  } else if (
+    env.SECRETLOVE_DEPLOYMENT_MODE ||
+    env.VERCEL_ENV !== 'preview' ||
+    (env.VERCEL_TARGET_ENV && env.VERCEL_TARGET_ENV !== 'preview')
+  )
+    return 'PREVIEW_BUILD_ONLY';
   try {
     const origin = new URL(env.APP_ORIGIN ?? '');
     if (
@@ -26,6 +44,10 @@ export function previewProblem(env) {
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY === env.SUPABASE_SERVICE_ROLE_KEY
   )
     return 'SEPARATE_SERVER_CREDENTIAL_REQUIRED';
+  if (ownerReview && !env.SUPABASE_SERVICE_ROLE_KEY.startsWith('sb_secret_'))
+    return 'MODERN_SERVER_CREDENTIAL_REQUIRED';
+  if (ownerReview && !env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_'))
+    return 'MODERN_PUBLIC_CREDENTIAL_REQUIRED';
   const keys = ['VERIFICATION_HMAC_KEY', 'RATE_LIMIT_HMAC_KEY', 'CRON_SECRET'].map(
     (name) => env[name],
   );

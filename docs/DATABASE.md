@@ -1,5 +1,11 @@
 # SecretLove — Database Schema
 
+## G2 proposed schema — NOT APPLIED
+
+[G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md) specifies proposed private `creator_access`, `operator_accounts`, `abuse_reports`, `letter_moderation` and `operator_audit`, with RLS, no browser table grants, bounded retention and service-only transactional gateways. The sole proposed authenticated-executable helper is no-argument/current-user-only `sl_creator_is_active()` for owner RLS: reviewed SECURITY DEFINER, empty search_path, no private-schema grants or user-ID lookup. All other privileged gateways remain service-only. Approval/hold coverage must include functions that bypass `private.lock_letter`, and cleanup exceptions must remain termination-only.
+
+Actual migration history remains 001–008. The next proposed 009 is **not created** in G2 and must be renumbered if history changes before G3. New production installation is 001–008 then reviewed 009; no automatic approval/backfill or remote application to the old test project. Bootstrap is separate exact-Owner-UUID permission, not a seeded account or public self-grant. Applying new approval RLS without explicit membership denies existing users by design; do not silently change the historical test project. Details, relationships, locks, grant exception, mutation/deletion semantics and acceptance cases are in the G2 proposal, not a claim of live schema readiness.
+
 Status: migrations 001/002 provide Creator and recipient foundations. Additive migration 003 provides the authorized music extension and was manually applied and verified by the user in the isolated project. Applied migrations remain immutable. Current evidence/setup is in MUSIC_TEST_REPORT.md, MUSIC_SETUP.md and TASKS.md.
 
 PostgreSQL is the source of truth. Use Supabase Auth's `auth.users`; no duplicate passwords, recipient accounts, profiles table, or generic permissions framework in the MVP. IDs are generated UUIDs; timestamps are UTC `timestamptz`. The migration has explicit table/function grants and a security-invoker `creator_letters` view with string versions.

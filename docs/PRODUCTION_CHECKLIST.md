@@ -1,3 +1,29 @@
+# Latest public Production workflow — G2 design prepared (2026-10-15)
+
+The owner requests public website access with server-enforced private letters and approval at every step. Follow [PUBLIC_PRODUCTION_WORKFLOW.md](PUBLIC_PRODUCTION_WORKFLOW.md): model/data/onboarding/contact decision → design → implement/test → separately approved configuration → reviewed source/single protected Production attempt → HTTPS acceptance → separately approved Standard Protection/public-domain opening. No current FAIL/NOT TESTED result is cleared by this proposal. Do not expose the prepared owner-only/test artifact by disabling protection. No remote settings/deployment/public opening is performed here.
+
+- [x] G1: workflow approved; owner chose separate Production backend and approved-Creator-only onboarding. Evidence/remaining inputs in G1_PRODUCTION_DECISIONS.md.
+- [x] G2 design work authorized on codex/g2-production-design; proposed schema/API/RLS/RPC/onboarding/MFA/hold/deletion/public guard and file/test scope documented in G2_PUBLIC_PRODUCTION_DESIGN.md. Not implemented or tested as new behavior.
+- [ ] Owner reviews proposed G2 decisions and authorizes G3 scope/branch; no automatic feature/SQL/remote/deployment action.
+- [ ] Contact/backend identifiers/domain/plan/provider operational verification remain pending for configuration/release; do not invent values or mark app/hosting acceptance PASS.
+- [ ] G2–G6: approved privacy/report/operator/signup/public-guard scope, local/provider/HTTPS/transport acceptance and exact one-attempt authorization.
+- [ ] G7: explicit public-opening packet for the accepted artifact; verify canonical public/private gate plus retained protection on other URLs.
+- [ ] G8: approved monitoring, cleanup/retention and containment operations. Existing historical fixture cohort remains untouched.
+
+# Earlier restricted Production path (2026-10-15)
+
+The original PPD-06 attempt is consumed and failed before app build. The owner approved preparation for **Owner-only Vercel Production using isolated test data**. This does not grant public release or a second deployment. [OWNER_ONLY_PRODUCTION_SETUP.md](OWNER_ONLY_PRODUCTION_SETUP.md) supersedes the earlier Preview-only targeting instructions for this path.
+
+- [ ] Review new source after explicit owner-review guard changes; old frozen commit does not include them.
+- [x] Local candidate validation: typecheck/lint/build PASS, **102 tests PASS / 2 SKIPPED**, source selection 143/no private artifacts, eight migrations unchanged. Actual hosted checks remain NOT TESTED; see the runbook for evidence and scope.
+- [ ] Operator configures 11 Production-only variables/four Sensitive, exact confirmed project origin, provider system variables and unchanged guarded build/install settings; secrets never in reports.
+- [ ] Reverify All Deployments/Owner-only, no bypass/exception/share links, `sin1`, plan eligibility and quota headroom.
+- [ ] Verify `crons: []` and no active scheduled jobs; no global cleanup/invocation or historical fixture deletion approved.
+- [ ] Confirm isolated Supabase exact callbacks/Site URL and SMTP/test-inbox plan without weakening recovery.
+- [ ] Read-only preflight, reviewed new source and explicit one-attempt Production authorization before any deployment.
+- [ ] Actual modern Storage/large streaming/auth/HTTPS/Heart/music gates remain NOT TESTED. Optional local fixture test remains deferred.
+- [ ] Public production release remains NO-GO for separate privacy/abuse/retention/operational gaps.
+
 # SecretLove — separate Preview and public release gates
 
 Latest PPD-03/04: API-key retirement and post-disablement local connectivity are operator-attested, not direct denial evidence. Dedicated Preview API/HMAC/Cron keys are operator-reported; previous HMAC/rate/Cron consumer retirement remains unconfirmed. Source review/checks/proposed commit set: DAY3_SOURCE_FREEZE_REVIEW.md. No source-review result authorizes deployment or completes HTTPS acceptance.

@@ -1,5 +1,9 @@
 # SecretLove — MVP Product Requirements
 
+## Latest public-release design — G2 review, not implemented
+
+G1 approved a public website with server-gated private letters, a separate clean Production Supabase and approved-Creator-only initial onboarding. G2 is authorized for design on `codex/g2-production-design`; [G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md) proposes invitation/recovery, explicit Creator approval, operator MFA, report-led letter holds, privacy/deletion operations and a bound public deployment mode. These are **not implemented or accepted** by approving G2 work. Open Creator signup is outside the initial release; recipients do not need Vercel/Creator accounts. Name/DOB remains low-assurance, not identity proof. G3 implementation requires review of that design; G4/G5/G7 configuration/deployment/public-opening approval remain separate. Contact/provider facts/retention remain pending; public release NO-GO.
+
 Status: Day 1 Creator Studio and Day 2 recipient journey are implemented. The latest user instruction additionally authorizes private background MP3 uploads and playback as a Day 2 extension. Broader theme/background/animation editors remain deferred; protected Heart/Closing copy and the bounded particle-heart/text-ring subset are explicitly authorized. Historical results are in DAY2_TEST_REPORT.md; current music evidence is in MUSIC_TEST_REPORT.md and TASKS.md.
 Planning date: 2026-10-14 (Asia/Bangkok). The three implementation days start after approval and environment readiness.
 

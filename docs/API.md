@@ -1,5 +1,11 @@
 # SecretLove — API Contracts
 
+## G2 proposed public-release contracts — NOT IMPLEMENTED
+
+[G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md) section 5 defines proposed bounded `POST /api/reports` (generic 202 receipt including unknown well-shaped share locators), operator report list/detail/resolve, Creator approval/suspension, letter hold/clear and exact-letter operator deletion. Operator operations require verified identity + aal2 + registry authorization, expected string versions, Origin/size/rate checks and atomic audit; no public existence/status/content oracle, bulk account removal, automatic invite mail or raw provider/Storage output.
+
+Production signup is proposed to return 403 REGISTRATION_CLOSED before provider calls, with provider signup disabled too. Authenticated-but-unapproved users get 403 CREATOR_NOT_APPROVED on Studio/owner APIs; recovery/logout remain distinct. Existing recipient inactive/held/unknown shares stay generic 404, missing/expired sessions on active available letters stay 401. Invite callback must not issue recovery proof; actual password reset still consumes 007 proof. These changes require G3 approval and tests; existing endpoint implementation below is historical until changed under that scope.
+
 Status: Creator/auth/photo, publication/recipient and the authorized private music extension are implemented. All paths are same-origin through a server-only DAL. `GET /api/letters` returns at most 20 active owner cards with `nextCursor` null. Templates remain trusted; approved V1 music and bounded particle-heart settings plus protected scene copy are editable. See DAY2_TEST_REPORT.md and MUSIC_TEST_REPORT.md for evidence.
 
 Implemented auth mutations: `POST /api/auth/login`, `/signup`, `/recover`, `/reset`, `/logout`; email confirmation/recovery uses `GET /auth/callback`. `GET /api/cron/cleanup` is a separate server bearer-authorized maintenance route, with aggregate counts only. Owner photo mutations return updated string versions; removal/deletion reports pending physical cleanup. See SETUP.md for required configuration.

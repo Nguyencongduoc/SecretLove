@@ -4,5 +4,5 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "node scripts/check-preview-config.mjs && pnpm build",
   "git": { "deploymentEnabled": false },
-  "crons": [{ "path": "/api/cron/cleanup", "schedule": "0 3 * * *" }]
+  "crons": []
 }

@@ -1,4 +1,6 @@
 import { expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { previewProblem } from '../scripts/preview-settings.mjs';
 const env = {
   VERCEL: '1',
@@ -27,6 +29,87 @@ it('fails closed for production/unknown origins/projects without revealing setti
     const error = previewProblem({ ...env, ...override });
     expect(error).not.toBeNull();
     expect(error).not.toContain('password');
+  }
+});
+
+const ownerReview = {
+  ...env,
+  VERCEL_ENV: 'production',
+  VERCEL_TARGET_ENV: 'production',
+  VERCEL_PROJECT_ID: 'prj_TH2Qq194T1GbYwRUJ0n7DfR7MXYK',
+  SECRETLOVE_DEPLOYMENT_MODE: 'owner-only-review',
+  APP_ORIGIN: 'https://secretlove-preview.vercel.app',
+  PREVIEW_SUPABASE_PROJECT_REF: 'samelfoyrujhcywcnofw',
+  NEXT_PUBLIC_SUPABASE_URL: 'https://samelfoyrujhcywcnofw.supabase.co',
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_inert_test',
+  SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_inert_test',
+};
+
+it('allows the explicitly configured owner-only Production review, preserving Preview support', () => {
+  expect(previewProblem(ownerReview)).toBeNull();
+  expect(previewProblem(env)).toBeNull();
+  expect(previewProblem({ ...env, VERCEL_TARGET_ENV: 'production' })).toBe('PREVIEW_BUILD_ONLY');
+});
+
+it.each([
+  ['provider marker', { VERCEL: '' }],
+  ['explicit review mode', { SECRETLOVE_DEPLOYMENT_MODE: '' }],
+  ['unknown mode', { SECRETLOVE_DEPLOYMENT_MODE: 'public-production' }],
+  ['Production context', { VERCEL_ENV: 'preview' }],
+  ['Production target', { VERCEL_TARGET_ENV: 'preview' }],
+  ['target presence', { VERCEL_TARGET_ENV: '' }],
+  ['approved project', { VERCEL_PROJECT_ID: 'prj_unapproved' }],
+  ['project presence', { VERCEL_PROJECT_ID: '' }],
+  ['approved isolated reference', { PREVIEW_SUPABASE_PROJECT_REF: 'a'.repeat(20) }],
+  ['matching database URL', { NEXT_PUBLIC_SUPABASE_URL: `https://${'a'.repeat(20)}.supabase.co` }],
+  ['canonical origin', { APP_ORIGIN: 'https://secretlove-review-ngcd.vercel.app' }],
+  ['exact origin', { APP_ORIGIN: 'https://secretlove-preview.vercel.app/' }],
+  ['server credential presence', { SUPABASE_SERVICE_ROLE_KEY: '' }],
+  ['modern server credential', { SUPABASE_SERVICE_ROLE_KEY: 'legacy-inert-jwt' }],
+  ['modern public credential', { NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'legacy-inert-public' }],
+  ['independent HMACs', { RATE_LIMIT_HMAC_KEY: ownerReview.VERIFICATION_HMAC_KEY }],
+  ['cron format', { CRON_SECRET: 'short' }],
+  ['no test namespace', { SECRETLOVE_TEST_RATE_NAMESPACE: 'caller-selected' }],
+  ['unchanged upload limit', { MAX_AUDIO_UPLOAD_BYTES: '16777217' }],
+])('rejects private Production review missing %s', (_name, overrides) => {
+  expect(previewProblem({ ...ownerReview, ...overrides })).not.toBeNull();
+});
+
+it('keeps automatic cron cleanup and Git deployment disabled in the hosting configuration', () => {
+  const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  expect(config.crons).toEqual([]);
+  expect(config.git.deploymentEnabled).toBe(false);
+  expect(config.buildCommand).toBe('node scripts/check-preview-config.mjs && pnpm build');
+  expect(config.installCommand).toBe('pnpm install --frozen-lockfile');
+});
+
+it('runs the real build guard with inert settings and redacts failures', () => {
+  const system = Object.fromEntries(
+    ['SystemRoot', 'WINDIR', 'PATH', 'TEMP', 'TMP'].flatMap((key) =>
+      process.env[key] ? [[key, process.env[key]]] : [],
+    ),
+  );
+  for (const [settings, expectedExit] of [
+    [env, 0],
+    [ownerReview, 0],
+    [{ ...ownerReview, SECRETLOVE_DEPLOYMENT_MODE: '' }, 1],
+    [{ ...ownerReview, CRON_SECRET: 'inert-sensitive-value-that-must-not-be-logged' }, 1],
+  ] as const) {
+    const run = spawnSync(process.execPath, ['scripts/check-preview-config.mjs'], {
+      env: { ...system, ...settings, NODE_ENV: 'test' },
+      encoding: 'utf8',
+      timeout: 5000,
+      windowsHide: true,
+    });
+    expect(run.status).toBe(expectedExit);
+    const output = run.stdout + run.stderr;
+    for (const key of [
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'VERIFICATION_HMAC_KEY',
+      'RATE_LIMIT_HMAC_KEY',
+      'CRON_SECRET',
+    ] as const)
+      expect(output).not.toContain(settings[key]);
   }
 });
 it('denies shared/malformed secrets, test rate namespace and raised audio limits', () => {

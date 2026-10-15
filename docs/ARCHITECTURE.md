@@ -1,5 +1,11 @@
 # SecretLove — Approved Architecture
 
+## G2 public-release extension — proposed, awaiting G3 scope approval
+
+Keep the existing Next.js/DAL/Supabase architecture and renderer. The reviewed-source proposal is [G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md): separate authenticated identity, approved Creator and MFA/registry-authorized operator; enforce approval in owner RLS and every privileged gateway; enforce letter holds/approval before all recipient bootstrap/session/content/media paths. Missing approval denies; outage/missing schema fails closed. Close/recovery/cleanup stay separate so revoked Creator access cannot prevent legitimate account recovery or safe pending-upload cleanup.
+
+Report intake and a small protected operator surface are proposed, with atomic audited hold/reinstatement and no automatic publication/session restoration. Public-mode binding must identify the separately approved Production backend; Vercel All Deployments remains during hosted acceptance and Standard is a later public-opening action. No new app/SQL/dependency or remote configuration is made in G2. Core/Day 1.5 architecture approvals below do not mean these new controls are implemented. Branch-per-phase and pending product/provider inputs are in the G2 document.
+
 Status: core and Day 1.5 approved; Creator Studio, recipient scenes, music and scene copy are implemented. The user additionally approved the bounded particle-heart/text-ring extension in section 13. Broader theme/background/animation editors and deployment remain outside scope. Current heart acceptance is in PARTICLE_HEART_TEST_REPORT.md and TASKS.md; older sections/reports remain historical.
 
 ## 1. Architecture decision

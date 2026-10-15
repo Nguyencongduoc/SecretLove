@@ -1,5 +1,11 @@
 # SecretLove — Security Design and Release Gates
 
+## G2 public-release controls — design for approval only
+
+G1 chose a separate Production backend and approved-Creator-only initial release. [G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md) is the new **unimplemented** proposal: explicit DB Creator approval in DAL/RLS/RPC, operator registry plus verified aal2, report intake with bounded durable rate limits, atomic letter holds/Creator suspension, no resurrected share/session on reinstatement, and minimal audited operator deletion. A bool role from client/user_metadata or a platform cookie is never authority. The narrow current-user boolean SECURITY DEFINER RLS helper is the only proposed authenticated function-grant exception; private schema/tables and other privileged RPCs remain denied to browser roles. G3 must test direct PostgREST/RPC and cleanup/concurrency paths, not just UI.
+
+Invitation is not recovery authorization; reset retains single-use 007 proof and verified identity even for users without Creator approval. Report descriptions are untrusted text, may contain personal data and must not be logged or copied into action audit. Open-report/audit retention, MFA/onboarding and quota defaults are proposed decisions, not established legal/operational guarantees. G2 changes no code, SQL, credentials or remote policy. No new modern Storage/HTTPS PASS, historical data cleanup, production/public deployment or security-control removal is authorized by design work.
+
 Status: core/Day 1.5 architecture approved; Day 3 security audit authorized. Creator, recipient, private music and bounded particle-heart customization exist. Historical future proposals below do not supersede later approved implementations. See DAY3_SECURITY_AUDIT.md for current evidence and release blockers; earlier test reports remain historical. This is not a certification of deployed protections. Read before changing authentication, authorization, verification, sessions, content APIs or Storage permissions.
 
 ## 1. Security claims and trust boundaries
