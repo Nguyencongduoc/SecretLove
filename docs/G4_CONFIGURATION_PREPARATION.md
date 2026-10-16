@@ -1,14 +1,18 @@
 # G4 packet — preparation only, not execution permission
 
+Latest G4.4 (2026-10-16): [current configuration/evidence](G4_PRODUCTION_CONFIGURATION_STATUS.md) supersedes the pending-backend statements below. The operator reports G4.1 provisioning, G4.2 migrations 001–009/catalog checks and G4.3 Auth settings complete on new Production `mdoaageegovutlxhhicz`. The approved canonical origin is now `https://secretlove-production.vercel.app`. Only local binding/guard/tests/docs updates are authorized in G4.4; no remote execution, credentials, mail or deployment.
+
 Before G4, present `git switch -c codex/g4-production-configuration` and verify the owner switched and approved that phase. G3 produced source and local tests only. Do not run this packet automatically.
 
 ## Required operator inputs
 
 1. Approve creating a **new empty Production Supabase** in the chosen region, separate from `samelfoyrujhcywcnofw`. Provide public project reference/URL only; keep keys in hosting settings. No transfer of historical synthetic data.
 2. Provide and verify the real privacy/report/deletion contact, approved inboxes and owner Auth identity. Review final policy, provider logs/backups/retention limits, SMTP budget, rate/abuse controls and monitoring ownership. Draft targets are not operational guarantees.
-3. Approve exact backend, project, resource/action and read-only verification scope before any remote write. Existing Vercel project remains `secretlove-preview`, Production canonical intent `https://secretlove-preview.vercel.app`, `sin1`; no authority to deploy or open access follows from this document.
+3. Approve exact backend, project, resource/action and read-only verification scope before any remote write. Existing Vercel project remains `secretlove-preview` (same project/team IDs), with Production canonical intent `https://secretlove-production.vercel.app`, `sin1`; no authority to deploy or open access follows from this document.
 
 ## Manual backend sequence, after explicit approval
+
+G4.2 has already been reported complete by the operator on `mdoaageegovutlxhhicz`. The sequence below is a reference for a fresh installation, not an instruction to reapply migrations. Do not rerun 001–009 on either existing backend.
 
 1. Confirm the new project's empty inventory. Review and apply **001–009 in order**, once each, using the SQL Editor. Never edit applied migrations, disable RLS, seed approvals broadly or apply 009 to the old isolated test project. If a transaction fails, stop and inspect status rather than replaying partial history blindly.
 2. Run read-only catalog checks below and retain status-only evidence. Registry/approval rows should initially be empty. Private Storage must remain private with browser access denied.
@@ -41,7 +45,11 @@ Expected: all app tables RLS ON; browser cannot use private schema/tables; anon 
 
 ## Hosting variables and source binding
 
-After the actual new project reference is reviewed, update only its public identifier in `config/public-deployment.json` under a reviewed source change; validate again and freeze later in G5. Current null intentionally blocks public deployment. Keep Vercel Authentication **All Deployments**, Owner-only through G6; G7 public opening requires separate approval. Cron stays off, Git auto-deployment off. Do not redeploy the old failed artifact.
+The owner approved the new project's public identifier in G4.4: `config/public-deployment.json` now binds `mdoaageegovutlxhhicz` and `https://secretlove-production.vercel.app`, retaining the existing Vercel project/team IDs. The public guard rejects null, historical and substituted backend bindings; Preview and owner-only modes remain separate. This replaces the G3 null placeholder; it does not authorize deployment. Validate this candidate and freeze later in G5. Keep Vercel Authentication **All Deployments**, Owner-only through G6; verify protection on every actual hostname rather than assuming it. G7 public opening requires separate approval. Cron stays off, Git auto-deployment off. Do not redeploy the old failed artifact.
+
+Production hosting must later receive `APP_ORIGIN=https://secretlove-production.vercel.app`, `SUPABASE_PROJECT_REF=mdoaageegovutlxhhicz`, and `NEXT_PUBLIC_SUPABASE_URL=https://mdoaageegovutlxhhicz.supabase.co` under a separate settings approval. No hosting values were read or changed in G4.4. Site URL/callback settings are operator-reported configured, not live-tested. The requested allowlist entries are `/auth/callback` and `/auth/callback\?next=/reset-password` on the new HTTPS origin: `\?` is a literal-question-mark glob escape in the allowlist only; application URLs retain `?`. If the Dashboard rejects/normalizes that escape, review actual saved metadata before mail tests; do not broaden to wildcards. Provider redirect matching and application callbacks require later real acceptance. SMTP templates/contact remain pending.
+
+The build guard checks deployment configuration only; it is not a runtime release lock. Valid authorized recipients can read published fixtures whenever the application is reachable, including before G7. Before G5/G6, approve and verify effective protection on canonical/generated/alias URLs or separately approve a default-closed server release lock with scoped acceptance access. `crons: []` disables scheduling, not the authenticated cleanup endpoint; do not invoke it or treat maintenance as physically disabled. Any stronger maintenance switch requires its own scope approval.
 
 Production-scoped entries (12): `APP_ORIGIN`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_PROJECT_REF`, `MAX_AUDIO_UPLOAD_BYTES`, `ENABLE_EXPERIMENTAL_COREPACK`, `SECRETLOVE_DEPLOYMENT_MODE`, `PRIVACY_CONTACT_EMAIL`, `SUPABASE_SERVICE_ROLE_KEY`, `VERIFICATION_HMAC_KEY`, `RATE_LIMIT_HMAC_KEY`, `CRON_SECRET`. Last four are independent new Production-only Sensitive settings. Mode is `public-private-gate`, Corepack is `1`, audio cap at most `16777216`; exact URL/reference/origin must match approved binding. No Preview-reference fallback. Provider Vercel system variables must be authentic, not manually spoofed. Never pull/export/print settings or reuse local/test secrets.
 

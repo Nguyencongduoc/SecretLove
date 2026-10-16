@@ -1,5 +1,7 @@
 # SecretLove — Approved Architecture
 
+G4.4 update (2026-10-16): public mode is bound to `https://secretlove-production.vercel.app` and new Production backend `mdoaageegovutlxhhicz`, retaining existing Vercel project/team IDs and separate Preview/owner-only modes. G4.1–G4.3 completion is operator-reported, not direct hosted acceptance. See [G4 configuration/evidence](G4_PRODUCTION_CONFIGURATION_STATUS.md). The build guard is not a runtime release lock; pre-G7 protection and the callable-but-unscheduled cleanup endpoint require explicit operational review before deployment.
+
 G3 status (2026-10-16): the owner approved the G2 scope and local access/report/operator/privacy/public-mode code has been added. [G3 implementation](G3_PUBLIC_RELEASE_IMPLEMENTATION.md) records actual DAL/RLS/RPC coverage and verification limits; [G4 preparation](G4_CONFIGURATION_PREPARATION.md) is a separately approved next phase. Migration 009 has not been applied remotely. New Production backend binding remains deliberately null/fail-closed. Existing scenes/private streaming are preserved. G2 proposal language below is historical, not hosted acceptance evidence.
 
 ## Historical G2 public-release design baseline

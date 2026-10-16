@@ -1,6 +1,6 @@
 {
   "projectId": "prj_TH2Qq194T1GbYwRUJ0n7DfR7MXYK",
   "teamId": "team_KJpwyYId3LugWZ4U1jnF4h67",
-  "origin": "https://secretlove-preview.vercel.app",
-  "supabaseProjectRef": null
+  "origin": "https://secretlove-production.vercel.app",
+  "supabaseProjectRef": "mdoaageegovutlxhhicz"
 }

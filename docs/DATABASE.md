@@ -1,5 +1,7 @@
 # SecretLove — Database Schema
 
+G4.4 update (2026-10-16): operator reports migrations 001–009 applied once in order on new Production `mdoaageegovutlxhhicz`, final catalog/grant/Storage checks PASS and all 19 inventories zero. Operator/Creator registries remain unseeded. Historical test backend is preserved. This supersedes earlier NOT APPLIED/pending-backend text as an operator attestation, not an independent SQL or live RLS test. Source migrations are unchanged; see [G4 evidence](G4_PRODUCTION_CONFIGURATION_STATUS.md).
+
 G3 (2026-10-16): proposed controls below are now represented in `supabase/migrations/202610160009_public_release_controls.sql` and local PGlite tests. This is **NOT APPLIED remotely**. Empty private role registries, report/moderation/audit tables, approved-owner RLS and service-only replacements preserve migration history 001–008. The sole browser function exception is the authenticated current-user boolean RLS helper. [Coverage and test limitations](G3_PUBLIC_RELEASE_IMPLEMENTATION.md); [new-backend-only application/bootstrap packet](G4_CONFIGURATION_PREPARATION.md). Do not apply 009 to the historical isolated project or backfill its users.
 
 ## G2 proposed schema — NOT APPLIED

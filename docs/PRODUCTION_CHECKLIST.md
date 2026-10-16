@@ -1,4 +1,16 @@
-# Latest public Production workflow — G2 design prepared (2026-10-15)
+# Current G4 Production configuration (2026-10-16)
+
+- [x] **G5 local review PASS:** 164 inputs exactly match validated G4.4; installed CLI selection 164 files/nine migrations, 24 deny/17 retain probes, 0 network attempts; exact 16-file commit candidate, bounded marker/whitespace checks and 11 Git exclusion probes PASS. See [G5 review](G5_PRODUCTION_SOURCE_FREEZE_REVIEW.md). No fresh app test/build execution claimed; G4.4 checks carried forward by exact continuity.
+- [ ] **G5 actual source freeze PENDING:** separately approve/stage/commit only the reviewed 16-file manifest and record its actual SHA. No commit, push, provider settings, deployment or public opening is authorized by this review; pre-attempt blockers remain.
+
+- [x] Owner-approved Production origin `https://secretlove-production.vercel.app`, backend `mdoaageegovutlxhhicz`; existing Vercel project/team IDs retained in source. See [G4 evidence](G4_PRODUCTION_CONFIGURATION_STATUS.md).
+- [x] **Operator-reported PASS:** G4.1 Free/Nano/Singapore/Healthy and no additional charges; G4.2 migrations 001–009, 17 RLS tables, grants/view/RPC checks, three private buckets and 19 zero-count inventories; G4.3 providers and requested Site URL/callback settings saved/reloaded. Not independently queried in G4.4.
+- [x] **G4.4 local PASS:** snapshot typegen/typecheck/lint, 124 tests PASS / 0 FAIL / 2 SKIPPED, production build; all 164 deployment inputs stable, 0 observed network attempts, nine migrations unchanged, no real credentials. Evidence in the G4 report; this is not hosted acceptance or deployment authority.
+- [ ] Review/configure Production hosting settings privately under separate approval; G4.4 does not read or change them. Real contact, SMTP and approved inboxes remain pending.
+- [ ] Resolve pre-G7 exposure: prove All Deployments protection on every URL or separately approve a server release lock. Current build guard does not gate recipient access at runtime. Cron schedule is off; authenticated cleanup remains callable with the valid secret.
+- [ ] G5 source review/freeze and exact deployment approval, G6 actual HTTPS/Auth/MFA/Storage/audio/scene/operations acceptance, G7 public-opening approval. No deployment, fixture, mail, cleanup or public opening follows from local checks.
+
+# Earlier public Production workflow — G2 design prepared (2026-10-15)
 
 The owner requests public website access with server-enforced private letters and approval at every step. Follow [PUBLIC_PRODUCTION_WORKFLOW.md](PUBLIC_PRODUCTION_WORKFLOW.md): model/data/onboarding/contact decision → design → implement/test → separately approved configuration → reviewed source/single protected Production attempt → HTTPS acceptance → separately approved Standard Protection/public-domain opening. No current FAIL/NOT TESTED result is cleared by this proposal. Do not expose the prepared owner-only/test artifact by disabling protection. No remote settings/deployment/public opening is performed here.
 

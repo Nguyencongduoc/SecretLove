@@ -74,28 +74,40 @@ const ownerReview = {
 const binding = {
   projectId: ownerReview.VERCEL_PROJECT_ID,
   teamId: 'team_KJpwyYId3LugWZ4U1jnF4h67',
-  origin: ownerReview.APP_ORIGIN,
-  supabaseProjectRef: 'p'.repeat(20),
+  origin: 'https://secretlove-production.vercel.app',
+  supabaseProjectRef: 'mdoaageegovutlxhhicz',
 };
 const publicRelease = {
   ...ownerReview,
   SECRETLOVE_DEPLOYMENT_MODE: 'public-private-gate',
+  APP_ORIGIN: binding.origin,
   SUPABASE_PROJECT_REF: binding.supabaseProjectRef,
   NEXT_PUBLIC_SUPABASE_URL: `https://${binding.supabaseProjectRef}.supabase.co`,
   PRIVACY_CONTACT_EMAIL: 'privacy@approved-domain.org',
   ENABLE_EXPERIMENTAL_COREPACK: '1',
 };
-it('public release requires the reviewed new backend binding; pending real binding blocks deployment', () => {
+it('public release requires the approved Production origin and backend, including the actual source binding', () => {
+  const actualBinding = JSON.parse(
+    readFileSync(new URL('../config/public-deployment.json', import.meta.url), 'utf8'),
+  );
+  expect(actualBinding).toEqual(binding);
   expect(previewProblem(publicRelease, binding)).toBeNull();
-  expect(previewProblem(publicRelease)).toBe('NEW_PRODUCTION_PROJECT_BINDING_REQUIRED');
+  expect(previewProblem(publicRelease)).toBeNull();
   for (const overrides of [
     { SUPABASE_PROJECT_REF: '' },
     { SUPABASE_PROJECT_REF: 'samelfoyrujhcywcnofw' },
+    {
+      SUPABASE_PROJECT_REF: 'p'.repeat(20),
+      NEXT_PUBLIC_SUPABASE_URL: `https://${'p'.repeat(20)}.supabase.co`,
+    },
     { NEXT_PUBLIC_SUPABASE_URL: ownerReview.NEXT_PUBLIC_SUPABASE_URL },
     { VERCEL_ENV: 'preview' },
     { VERCEL_TARGET_ENV: '' },
     { VERCEL_PROJECT_ID: 'foreign' },
     { APP_ORIGIN: 'https://other.invalid' },
+    { APP_ORIGIN: ownerReview.APP_ORIGIN },
+    { APP_ORIGIN: `${binding.origin}/` },
+    { APP_ORIGIN: 'https://user:password@secretlove-production.vercel.app' },
     { ENABLE_EXPERIMENTAL_COREPACK: '' },
     { PRIVACY_CONTACT_EMAIL: '' },
     { PRIVACY_CONTACT_EMAIL: 'privacy@example.com' },
@@ -109,6 +121,42 @@ it('public release requires the reviewed new backend binding; pending real bindi
   expect(
     previewProblem(publicRelease, { ...binding, supabaseProjectRef: 'samelfoyrujhcywcnofw' }),
   ).not.toBeNull();
+});
+
+it('denies pending or substituted public bindings even when supplied settings match the substitute', () => {
+  for (const supabaseProjectRef of [null, '', 'samelfoyrujhcywcnofw', 'p'.repeat(20)]) {
+    expect(
+      previewProblem(
+        {
+          ...publicRelease,
+          SUPABASE_PROJECT_REF: supabaseProjectRef ?? '',
+          NEXT_PUBLIC_SUPABASE_URL: `https://${supabaseProjectRef ?? ''}.supabase.co`,
+        },
+        { ...binding, supabaseProjectRef },
+      ),
+    ).toBe('NEW_PRODUCTION_PROJECT_BINDING_REQUIRED');
+  }
+  expect(
+    previewProblem(
+      { ...publicRelease, APP_ORIGIN: ownerReview.APP_ORIGIN },
+      { ...binding, origin: ownerReview.APP_ORIGIN },
+    ),
+  ).toBe('PUBLIC_ORIGIN_REQUIRED');
+  expect(previewProblem(publicRelease, { ...binding, projectId: 'prj_foreign' })).toBe(
+    'PUBLIC_PROJECT_REQUIRED',
+  );
+  expect(previewProblem(publicRelease, { ...binding, teamId: 'team_foreign' })).toBe(
+    'PUBLIC_PROJECT_REQUIRED',
+  );
+});
+
+it('keeps public and historical owner-only targets separate', () => {
+  expect(previewProblem({ ...ownerReview, APP_ORIGIN: binding.origin })).toBe(
+    'OWNER_REVIEW_ORIGIN_REQUIRED',
+  );
+  expect(
+    previewProblem({ ...ownerReview, PREVIEW_SUPABASE_PROJECT_REF: binding.supabaseProjectRef }),
+  ).toBe('OWNER_REVIEW_ISOLATED_PROJECT_REQUIRED');
 });
 
 it('allows the explicitly configured owner-only Production review, preserving Preview support', () => {
@@ -158,6 +206,9 @@ it('runs the real build guard with inert settings and redacts failures', () => {
   for (const [settings, expectedExit] of [
     [env, 0],
     [ownerReview, 0],
+    [publicRelease, 0],
+    [{ ...publicRelease, APP_ORIGIN: ownerReview.APP_ORIGIN }, 1],
+    [{ ...publicRelease, SUPABASE_PROJECT_REF: ownerReview.PREVIEW_SUPABASE_PROJECT_REF }, 1],
     [{ ...ownerReview, SECRETLOVE_DEPLOYMENT_MODE: '' }, 1],
     [{ ...ownerReview, CRON_SECRET: 'inert-sensitive-value-that-must-not-be-logged' }, 1],
   ] as const) {

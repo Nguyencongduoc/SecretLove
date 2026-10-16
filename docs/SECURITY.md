@@ -1,5 +1,7 @@
 # SecretLove — Security Design and Release Gates
 
+G4.4 update (2026-10-16): only local binding/public guard/tests/docs changes are authorized, targeting `https://secretlove-production.vercel.app` and new backend `mdoaageegovutlxhhicz`. G4.2 migration/catalog checks and G4.3 Auth settings PASS are operator-reported; raw provider denial, real recovery/MFA, media and HTTPS acceptance remain NOT TESTED. No secrets/remote mutations are needed for this work. See [G4 evidence and pre-G7 exposure/maintenance limitations](G4_PRODUCTION_CONFIGURATION_STATUS.md); configuration validation is not a runtime release lock, and disabled scheduling does not disable the authenticated cleanup endpoint.
+
 Latest G3 status (2026-10-16): owner approved and locally implemented the reviewed G2 controls. See [implementation/limits](G3_PUBLIC_RELEASE_IMPLEMENTATION.md) and [manual G4 preparation](G4_CONFIGURATION_PREPARATION.md). The source enforces approved Creators and verified registry/AAL2 operators, audited report-led holds, no access resurrection, and a new-backend public guard. All schema additions are in unapplied migration 009; 001–008 remain unchanged. Old-backend runtime use of this branch must fail closed rather than auto-approve. Actual provider, multi-connection concurrency, physical retention/cleanup and hosted modern Storage remain NOT TESTED. No remote configuration or deployment was authorized by G3.
 
 ## Historical G2 public-release security proposal

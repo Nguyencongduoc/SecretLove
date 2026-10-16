@@ -1,5 +1,7 @@
 # SecretLove — API Contracts
 
+G4.4 update (2026-10-16): the approved public API origin is `https://secretlove-production.vercel.app`, backend `mdoaageegovutlxhhicz`; routes/contracts and historical Preview/owner-only modes are unchanged. Provider Auth configuration is operator-reported PASS; real callbacks, signup denial, authenticated APIs and private media on the HTTPS target remain NOT TESTED. See [G4 evidence](G4_PRODUCTION_CONFIGURATION_STATUS.md).
+
 G3 (2026-10-16): the G2 report/operator contracts below are implemented locally. Operator APIs use the constrained catch-all handler `/api/operator/[...segments]`, verifying the exact method/segment pattern and server-derived identity. All operator data/actions require registry plus verified AAL2; Creator approval is independent. Signup now returns `403 REGISTRATION_CLOSED`, invitation callback accepts `type=invite` without recovery proof, and pending users can recover/sign out. See [implementation evidence/limits](G3_PUBLIC_RELEASE_IMPLEMENTATION.md). Provider-backed/browser/HTTPS acceptance remains pending; old contract sections are historical where superseded.
 
 ## Historical G2 public-release contract proposal

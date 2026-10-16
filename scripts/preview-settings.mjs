@@ -4,8 +4,8 @@ const publicBinding = JSON.parse(
 );
 /** @param {Record<string, string | undefined>} env */
 export function previewProblem(env, binding = publicBinding) {
-  // Production is allowed only for this explicitly opted-in, protected test deployment.
-  // Platform Authentication/owner membership must still be verified outside this guard.
+  // Production requires an explicit mode and its reviewed origin/backend binding.
+  // Platform protection and release authorization must be verified outside this build guard.
   const ownerReview = env.SECRETLOVE_DEPLOYMENT_MODE === 'owner-only-review';
   const publicRelease = env.SECRETLOVE_DEPLOYMENT_MODE === 'public-private-gate';
   if (env.VERCEL !== '1') return 'PREVIEW_BUILD_ONLY';
@@ -19,13 +19,14 @@ export function previewProblem(env, binding = publicBinding) {
     )
       return 'PUBLIC_PROJECT_REQUIRED';
     if (
-      binding.origin !== 'https://secretlove-preview.vercel.app' ||
+      binding.origin !== 'https://secretlove-production.vercel.app' ||
       env.APP_ORIGIN !== binding.origin
     )
       return 'PUBLIC_ORIGIN_REQUIRED';
     if (
       !/^[a-z0-9]{20}$/.test(binding.supabaseProjectRef ?? '') ||
       binding.supabaseProjectRef === 'samelfoyrujhcywcnofw' ||
+      binding.supabaseProjectRef !== 'mdoaageegovutlxhhicz' ||
       env.SUPABASE_PROJECT_REF !== binding.supabaseProjectRef
     )
       return 'NEW_PRODUCTION_PROJECT_BINDING_REQUIRED';
