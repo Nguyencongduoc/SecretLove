@@ -18,6 +18,7 @@ export async function cleanupMedia() {
   const deadline = Date.now() + 40000;
   const stale = await rpc<number>('sl_cleanup_stale');
   await rpc<number>('sl_recovery_prune');
+  await rpc<number>('sl_report_prune');
   await rpc<number>('sl_ingest_stale');
   let completed = 0;
   let failed = 0;

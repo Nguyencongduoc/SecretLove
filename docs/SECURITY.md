@@ -1,6 +1,8 @@
 # SecretLove — Security Design and Release Gates
 
-## G2 public-release controls — design for approval only
+Latest G3 status (2026-10-16): owner approved and locally implemented the reviewed G2 controls. See [implementation/limits](G3_PUBLIC_RELEASE_IMPLEMENTATION.md) and [manual G4 preparation](G4_CONFIGURATION_PREPARATION.md). The source enforces approved Creators and verified registry/AAL2 operators, audited report-led holds, no access resurrection, and a new-backend public guard. All schema additions are in unapplied migration 009; 001–008 remain unchanged. Old-backend runtime use of this branch must fail closed rather than auto-approve. Actual provider, multi-connection concurrency, physical retention/cleanup and hosted modern Storage remain NOT TESTED. No remote configuration or deployment was authorized by G3.
+
+## Historical G2 public-release security proposal
 
 G1 chose a separate Production backend and approved-Creator-only initial release. [G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md) is the new **unimplemented** proposal: explicit DB Creator approval in DAL/RLS/RPC, operator registry plus verified aal2, report intake with bounded durable rate limits, atomic letter holds/Creator suspension, no resurrected share/session on reinstatement, and minimal audited operator deletion. A bool role from client/user_metadata or a platform cookie is never authority. The narrow current-user boolean SECURITY DEFINER RLS helper is the only proposed authenticated function-grant exception; private schema/tables and other privileged RPCs remain denied to browser roles. G3 must test direct PostgREST/RPC and cleanup/concurrency paths, not just UI.
 

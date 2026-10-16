@@ -73,6 +73,12 @@ export function SharingPanel({
   return (
     <section className="panel mb-6" aria-label="Publish and share">
       <h2 className="text-2xl">Send your little gift</h2>
+      {letter.moderation?.state === 'held' && (
+        <p role="status" className="notice">
+          This letter is held for operator review. You can edit or delete it, but cannot publish or
+          share until the hold is cleared.
+        </p>
+      )}
       <p className="hint my-3">
         Publishing freezes the saved letter. Unpublish before editing; publishing again creates a
         fresh link. Name and birth date offer limited protection. Share an optional passphrase
@@ -89,7 +95,12 @@ export function SharingPanel({
         </p>
       )}
       {letter.status === 'draft' ? (
-        <button type="button" className="button" disabled={disabled} onClick={() => void publish()}>
+        <button
+          type="button"
+          className="button"
+          disabled={disabled || letter.moderation?.state === 'held'}
+          onClick={() => void publish()}
+        >
           Publish saved letter
         </button>
       ) : (

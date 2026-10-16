@@ -1,6 +1,8 @@
 # SecretLove — Approved Architecture
 
-## G2 public-release extension — proposed, awaiting G3 scope approval
+G3 status (2026-10-16): the owner approved the G2 scope and local access/report/operator/privacy/public-mode code has been added. [G3 implementation](G3_PUBLIC_RELEASE_IMPLEMENTATION.md) records actual DAL/RLS/RPC coverage and verification limits; [G4 preparation](G4_CONFIGURATION_PREPARATION.md) is a separately approved next phase. Migration 009 has not been applied remotely. New Production backend binding remains deliberately null/fail-closed. Existing scenes/private streaming are preserved. G2 proposal language below is historical, not hosted acceptance evidence.
+
+## Historical G2 public-release design baseline
 
 Keep the existing Next.js/DAL/Supabase architecture and renderer. The reviewed-source proposal is [G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md): separate authenticated identity, approved Creator and MFA/registry-authorized operator; enforce approval in owner RLS and every privileged gateway; enforce letter holds/approval before all recipient bootstrap/session/content/media paths. Missing approval denies; outage/missing schema fails closed. Close/recovery/cleanup stay separate so revoked Creator access cannot prevent legitimate account recovery or safe pending-upload cleanup.
 

@@ -3,20 +3,31 @@ import { ownerClient } from '@/lib/supabase/server';
 import { assertOrigin, endpoint, jsonBody, success } from '@/lib/server/http';
 import { AppError } from '@/lib/server/errors';
 import { appOrigin } from '@/lib/server/env';
-import { requireCreator } from '@/lib/server/identity';
+import { requireAuthenticatedUser } from '@/lib/server/identity';
+import { durableLimit } from '@/lib/server/rate';
+import { recipientRateSubject } from '@/lib/server/recipient';
 import { clearRecovery, consumeRecovery } from '@/lib/server/recovery';
 export const dynamic = 'force-dynamic';
 const email = z.email().max(254);
 const password = z.string().min(12, 'Use at least 12 characters.').max(128);
-const credentials = z.strictObject({ email, password });
 export async function POST(request: Request, context: { params: Promise<{ action: string }> }) {
   return endpoint(async () => {
     assertOrigin(request);
     const { action } = await context.params;
     const body = await jsonBody(request, 4096);
+    if (action === 'signup')
+      throw new AppError(403, 'REGISTRATION_CLOSED', 'Creator registration is invitation-only.');
     const client = await ownerClient();
     if (action === 'login') {
       const input = z.strictObject({ email, password: z.string().min(1).max(128) }).parse(body);
+      const address = recipientRateSubject(request);
+      await durableLimit('login_ip', address, 30, 900);
+      await durableLimit(
+        'login_email_ip',
+        JSON.stringify([input.email.toLowerCase(), address]),
+        10,
+        900,
+      );
       const { data, error } = await client.auth.signInWithPassword(input);
       if (error || !data.user?.email_confirmed_at)
         throw new AppError(
@@ -26,25 +37,10 @@ export async function POST(request: Request, context: { params: Promise<{ action
         );
       return success({ signedIn: true });
     }
-    if (action === 'signup') {
-      const input = credentials.parse(body);
-      const { error } = await client.auth.signUp({
-        ...input,
-        options: { emailRedirectTo: `${appOrigin()}/auth/callback` },
-      });
-      if (error)
-        throw new AppError(
-          503,
-          'SIGN_UP_FAILED',
-          'Registration could not finish. Please try again or contact the project owner.',
-        );
-      return success({
-        message:
-          'If registration is available for this address, check your email to confirm your account.',
-      });
-    }
     if (action === 'recover') {
       const input = z.strictObject({ email }).parse(body);
+      await durableLimit('recovery_ip', recipientRateSubject(request), 3, 3600);
+      await durableLimit('recovery_email', input.email.toLowerCase(), 3, 3600);
       const { error } = await client.auth.resetPasswordForEmail(input.email, {
         redirectTo: `${appOrigin()}/auth/callback?next=/reset-password`,
       });
@@ -60,7 +56,7 @@ export async function POST(request: Request, context: { params: Promise<{ action
     }
     if (action === 'reset') {
       const input = z.strictObject({ password }).parse(body);
-      const { user } = await requireCreator();
+      const { user } = await requireAuthenticatedUser();
       const { data } = await client.auth.getSession();
       if (!data.session)
         throw new AppError(401, 'RECOVERY_REQUIRED', 'Open a fresh recovery link.');

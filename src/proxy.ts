@@ -17,7 +17,14 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request: { headers } });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (url && key && request.nextUrl.pathname.startsWith('/studio')) {
+  if (
+    url &&
+    key &&
+    ['/studio', '/operator', '/access-pending'].some(
+      (path) =>
+        request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(`${path}/`),
+    )
+  ) {
     const client = createServerClient(url, key, {
       cookies: {
         getAll: () => request.cookies.getAll(),

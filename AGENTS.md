@@ -5,6 +5,8 @@ SecretLove is a private digital letter platform: authenticated Creator Studio an
 
 ## Approval and scope
 
+- Latest: user approved G3 public-release implementation on `codex/g3-production-implementation`, following `docs/G2_PUBLIC_PRODUCTION_DESIGN.md`. Local approval/report/operator/privacy/public guard work is authorized. New migration 009 is for the separately approved new Production backend only. Preserve 001–008, `.env.local`, historical test data and the existing server; no remote SQL/settings/accounts/mail/fixtures, cleanup, commit/push or deployment without their later exact gates. See `docs/G3_PUBLIC_RELEASE_IMPLEMENTATION.md` and the G4 preparation packet.
+
 - Read docs/PRD.md, docs/ARCHITECTURE.md, docs/ARCHITECTURE_REVIEW.md, docs/DATABASE.md, docs/API.md, and TASKS.md before work.
 - The user approved the core and Day 1.5 architecture and authorized Day 2 publishing/access plus the complete recipient scenes (previously planned for Day 3). Preserve Day 1 functionality and .env.local; no destructive SQL. Advanced theme/drag-and-drop editors, video, private music uploads and deployment remain outside this milestone.
 - After approval, implement one milestone at a time; keep future features out of scope. The three-day target is a stretch estimate requiring schedule/scope approval. Record approval and progress in TASKS.md.

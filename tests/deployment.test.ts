@@ -2,6 +2,32 @@ import { expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { previewProblem } from '../scripts/preview-settings.mjs';
+import postcss, { type AcceptedPlugin } from 'postcss';
+import tailwindcss from '@tailwindcss/postcss';
+import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+it('compiles actual UI utilities from src while excluding private build/test artifacts', async () => {
+  const css = readFileSync('src/app/globals.css', 'utf8');
+  expect(css).toContain("source('../')");
+  mkdirSync('test-results', { recursive: true });
+  const artifact = resolve('test-results/g3-css-scanner-artifact.html');
+  writeFileSync(artifact, '<div class="translate-x-[54321px]"></div>');
+  try {
+    // The pinned Tailwind package carries PostCSS 8.5.23 type identities;
+    // the app uses 8.5.29. Exercise the compatible runtime plugin boundary.
+    const plugin = tailwindcss({ base: process.cwd() }) as unknown as AcceptedPlugin;
+    const result = await postcss([plugin]).process(css, {
+      from: resolve('src/app/globals.css'),
+    });
+    expect(result.css).toContain('display: flex');
+    expect(result.css).toContain('.break-words');
+    expect(result.css).toContain('.space-y-8');
+    expect(result.css).not.toContain('54321px');
+  } finally {
+    unlinkSync(artifact);
+  }
+});
 const env = {
   VERCEL: '1',
   VERCEL_ENV: 'preview',
@@ -44,6 +70,46 @@ const ownerReview = {
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_inert_test',
   SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_inert_test',
 };
+
+const binding = {
+  projectId: ownerReview.VERCEL_PROJECT_ID,
+  teamId: 'team_KJpwyYId3LugWZ4U1jnF4h67',
+  origin: ownerReview.APP_ORIGIN,
+  supabaseProjectRef: 'p'.repeat(20),
+};
+const publicRelease = {
+  ...ownerReview,
+  SECRETLOVE_DEPLOYMENT_MODE: 'public-private-gate',
+  SUPABASE_PROJECT_REF: binding.supabaseProjectRef,
+  NEXT_PUBLIC_SUPABASE_URL: `https://${binding.supabaseProjectRef}.supabase.co`,
+  PRIVACY_CONTACT_EMAIL: 'privacy@approved-domain.org',
+  ENABLE_EXPERIMENTAL_COREPACK: '1',
+};
+it('public release requires the reviewed new backend binding; pending real binding blocks deployment', () => {
+  expect(previewProblem(publicRelease, binding)).toBeNull();
+  expect(previewProblem(publicRelease)).toBe('NEW_PRODUCTION_PROJECT_BINDING_REQUIRED');
+  for (const overrides of [
+    { SUPABASE_PROJECT_REF: '' },
+    { SUPABASE_PROJECT_REF: 'samelfoyrujhcywcnofw' },
+    { NEXT_PUBLIC_SUPABASE_URL: ownerReview.NEXT_PUBLIC_SUPABASE_URL },
+    { VERCEL_ENV: 'preview' },
+    { VERCEL_TARGET_ENV: '' },
+    { VERCEL_PROJECT_ID: 'foreign' },
+    { APP_ORIGIN: 'https://other.invalid' },
+    { ENABLE_EXPERIMENTAL_COREPACK: '' },
+    { PRIVACY_CONTACT_EMAIL: '' },
+    { PRIVACY_CONTACT_EMAIL: 'privacy@example.com' },
+    { MAX_AUDIO_UPLOAD_BYTES: '' },
+    { MAX_AUDIO_UPLOAD_BYTES: '16777217' },
+    { SUPABASE_SERVICE_ROLE_KEY: 'legacy-inert' },
+    { SECRETLOVE_TEST_PROJECT: 'isolated' },
+    { RATE_LIMIT_HMAC_KEY: publicRelease.VERIFICATION_HMAC_KEY },
+  ])
+    expect(previewProblem({ ...publicRelease, ...overrides }, binding)).not.toBeNull();
+  expect(
+    previewProblem(publicRelease, { ...binding, supabaseProjectRef: 'samelfoyrujhcywcnofw' }),
+  ).not.toBeNull();
+});
 
 it('allows the explicitly configured owner-only Production review, preserving Preview support', () => {
   expect(previewProblem(ownerReview)).toBeNull();

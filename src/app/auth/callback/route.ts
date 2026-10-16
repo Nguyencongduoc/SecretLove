@@ -17,17 +17,19 @@ export async function GET(request: Request) {
   }
   const token = url.searchParams.get('token_hash');
   const type = url.searchParams.get('type');
-  if (token && ['email', 'signup', 'recovery'].includes(type ?? '')) {
+  if (token && ['email', 'signup', 'recovery', 'invite'].includes(type ?? '')) {
     const { data, error } = await client.auth.verifyOtp({
       token_hash: token,
-      type: type as 'email' | 'signup' | 'recovery',
+      type: type as 'email' | 'signup' | 'recovery' | 'invite',
     });
     if (!error && data.user && data.session) {
       if (type === 'recovery') {
         await issueRecovery(data.user.id, data.session.access_token);
         return NextResponse.redirect(`${origin}/reset-password`);
       }
-      return NextResponse.redirect(`${origin}/studio`);
+      return NextResponse.redirect(
+        `${origin}/${type === 'invite' ? 'access-pending?notice=invited' : 'studio'}`,
+      );
     }
   }
   return NextResponse.redirect(`${origin}/login?notice=confirmation_failed`);

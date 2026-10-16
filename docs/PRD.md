@@ -1,6 +1,8 @@
 # SecretLove — MVP Product Requirements
 
-## Latest public-release design — G2 review, not implemented
+Latest (2026-10-16): owner approved G3 on its implementation branch. Local source now implements invitation-only application signup, explicit Creator approval, operator registry/MFA, report-led holds and scoped deletion, privacy/request drafts and the new-backend public guard. See [G3 implementation and verification limits](G3_PUBLIC_RELEASE_IMPLEMENTATION.md). Provider configuration, actual policy/contact, new backend, mail/MFA/browser/HTTPS/Storage acceptance and deployment remain pending. Historical G2 proposal language below is superseded by this status, not a hosted completion claim. The earlier MFA deferral does not exclude the now-approved operator MFA requirement.
+
+## Historical G2 public-release design baseline
 
 G1 approved a public website with server-gated private letters, a separate clean Production Supabase and approved-Creator-only initial onboarding. G2 is authorized for design on `codex/g2-production-design`; [G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md) proposes invitation/recovery, explicit Creator approval, operator MFA, report-led letter holds, privacy/deletion operations and a bound public deployment mode. These are **not implemented or accepted** by approving G2 work. Open Creator signup is outside the initial release; recipients do not need Vercel/Creator accounts. Name/DOB remains low-assurance, not identity proof. G3 implementation requires review of that design; G4/G5/G7 configuration/deployment/public-opening approval remain separate. Contact/provider facts/retention remain pending; public release NO-GO.
 

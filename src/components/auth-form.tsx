@@ -108,7 +108,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         {mode === 'login' && (
           <div className="hint mt-5 flex justify-between gap-4">
             <Link href="/recover">Forgot password?</Link>
-            <Link href="/signup">Create account</Link>
+            <Link href="/signup">Invitation-only access</Link>
           </div>
         )}
         {mode !== 'login' && (

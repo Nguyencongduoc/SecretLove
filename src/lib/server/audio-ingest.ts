@@ -1,6 +1,6 @@
 import 'server-only';
 import { createHash, createHmac } from 'node:crypto';
-import { requireCreator } from './identity';
+import { requireCreator, requireAuthenticatedUser } from './identity';
 import { getLetter, mutationLimit, rpc } from './letters';
 import { AppError } from './errors';
 import { audioLimit, normalizeAudio } from './mp3';
@@ -194,7 +194,9 @@ export async function commitAudioIngest(id: string, ingestId: string, requestSig
   }
 }
 export async function cancelAudioIngest(id: string, ingestId: string) {
-  const actor = await ingestActor(id, ingestId);
+  idSchema.parse(id);
+  idSchema.parse(ingestId);
+  const actor = (await requireAuthenticatedUser()).user.id;
   await mutationLimit(actor);
   await rpc('sl_ingest_cancel', { a: actor, lid: id, iid: ingestId });
   return getLetter(id);

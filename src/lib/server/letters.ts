@@ -1,6 +1,7 @@
 import 'server-only';
 import { randomUUID, createHmac } from 'node:crypto';
-import { serviceClient } from '@/lib/supabase/service';
+import { rpc } from './rpc';
+export { rpc } from './rpc';
 import { requireCreator } from './identity';
 import { AppError, databaseError } from './errors';
 import { secret } from './env';
@@ -16,11 +17,6 @@ import { resolvedMusic } from '@/lib/validation/music';
 import { resolveSceneText } from '@/lib/validation/scene-text';
 import { resolveHeart } from '@/lib/validation/heart';
 
-export async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
-  const { data, error } = await serviceClient().rpc(name, args);
-  if (error) databaseError(error.message);
-  return data as T;
-}
 export async function mutationLimit(userId: string, upload = false) {
   const digest = createHmac('sha256', Buffer.from(secret('RATE_LIMIT_HMAC_KEY'), 'base64'))
     .update(`${upload ? 'upload' : 'mutation'}:${userId}`)
@@ -84,10 +80,11 @@ export async function getLetter(id: string): Promise<Letter> {
     .eq('letter_id', id)
     .limit(1);
   if (assetError) databaseError();
-  const flags = await rpc<{ verificationConfigured: boolean; passphraseRequired: boolean }>(
-    'sl_gate_flags',
-    { a: user.id, lid: id },
-  );
+  const flags = await rpc<{
+    verificationConfigured: boolean;
+    passphraseRequired: boolean;
+    moderation: Letter['moderation'];
+  }>('sl_gate_flags', { a: user.id, lid: id });
   return {
     audioUpload: await rpc<Letter['audioUpload']>('sl_ingest_flags', { a: user.id, lid: id }),
     heartCustomization: resolveHeart(row.presentation_config?.heartCustomization),

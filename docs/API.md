@@ -1,6 +1,8 @@
 # SecretLove — API Contracts
 
-## G2 proposed public-release contracts — NOT IMPLEMENTED
+G3 (2026-10-16): the G2 report/operator contracts below are implemented locally. Operator APIs use the constrained catch-all handler `/api/operator/[...segments]`, verifying the exact method/segment pattern and server-derived identity. All operator data/actions require registry plus verified AAL2; Creator approval is independent. Signup now returns `403 REGISTRATION_CLOSED`, invitation callback accepts `type=invite` without recovery proof, and pending users can recover/sign out. See [implementation evidence/limits](G3_PUBLIC_RELEASE_IMPLEMENTATION.md). Provider-backed/browser/HTTPS acceptance remains pending; old contract sections are historical where superseded.
+
+## Historical G2 public-release contract proposal
 
 [G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md) section 5 defines proposed bounded `POST /api/reports` (generic 202 receipt including unknown well-shaped share locators), operator report list/detail/resolve, Creator approval/suspension, letter hold/clear and exact-letter operator deletion. Operator operations require verified identity + aal2 + registry authorization, expected string versions, Origin/size/rate checks and atomic audit; no public existence/status/content oracle, bulk account removal, automatic invite mail or raw provider/Storage output.
 

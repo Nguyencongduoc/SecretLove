@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import 'tailwindcss' source('../');
 @theme {
   --color-rose-950: #46242e;
   --color-rose-700: #963b58;

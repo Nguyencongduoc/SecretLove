@@ -10,6 +10,10 @@ export class AppError extends Error {
   }
 }
 const errors: Record<string, [number, string]> = {
+  CREATOR_NOT_APPROVED: [403, 'Creator access requires operator approval.'],
+  OPERATOR_REQUIRED: [403, 'Operator access is required.'],
+  LETTER_HELD: [409, 'This letter is held for operator review and cannot be published.'],
+  INVALID_ACTION: [422, 'Choose a valid action.'],
   INVALID_AUDIO: [
     422,
     'This MP3 could not be validated. Cancel the upload and choose a valid file.',

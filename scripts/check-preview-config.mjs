@@ -7,5 +7,5 @@ if (problem) {
   process.exitCode = 1;
 } else
   console.log(
-    'Deployment environment format check passed. Owner-only platform protection, SMTP and HTTPS acceptance still require operator verification.',
+    'Deployment environment format check passed. Platform protection, SMTP, policy and HTTPS acceptance still require operator verification.',
   );

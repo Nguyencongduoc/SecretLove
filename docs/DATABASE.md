@@ -1,5 +1,7 @@
 # SecretLove — Database Schema
 
+G3 (2026-10-16): proposed controls below are now represented in `supabase/migrations/202610160009_public_release_controls.sql` and local PGlite tests. This is **NOT APPLIED remotely**. Empty private role registries, report/moderation/audit tables, approved-owner RLS and service-only replacements preserve migration history 001–008. The sole browser function exception is the authenticated current-user boolean RLS helper. [Coverage and test limitations](G3_PUBLIC_RELEASE_IMPLEMENTATION.md); [new-backend-only application/bootstrap packet](G4_CONFIGURATION_PREPARATION.md). Do not apply 009 to the historical isolated project or backfill its users.
+
 ## G2 proposed schema — NOT APPLIED
 
 [G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md) specifies proposed private `creator_access`, `operator_accounts`, `abuse_reports`, `letter_moderation` and `operator_audit`, with RLS, no browser table grants, bounded retention and service-only transactional gateways. The sole proposed authenticated-executable helper is no-argument/current-user-only `sl_creator_is_active()` for owner RLS: reviewed SECURITY DEFINER, empty search_path, no private-schema grants or user-ID lookup. All other privileged gateways remain service-only. Approval/hold coverage must include functions that bypass `private.lock_letter`, and cleanup exceptions must remain termination-only.

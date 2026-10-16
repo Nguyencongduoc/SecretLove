@@ -24,8 +24,8 @@ export default function Home() {
         <p className="hint my-8 max-w-lg text-lg">
           Gather your words, your memories, and a little piece of your heart in a private letter.
         </p>
-        <Link className="button" href="/signup">
-          Create your space <ArrowRight size={16} />
+        <Link className="button" href="/login">
+          Creator sign in <ArrowRight size={16} />
         </Link>
         <p className="hint mt-8 flex items-center gap-2">
           <LockKeyhole size={16} /> Your drafts stay in your Creator Studio.

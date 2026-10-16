@@ -1,10 +1,46 @@
+import { readFileSync } from 'node:fs';
+const publicBinding = JSON.parse(
+  readFileSync(new URL('../config/public-deployment.json', import.meta.url), 'utf8'),
+);
 /** @param {Record<string, string | undefined>} env */
-export function previewProblem(env) {
+export function previewProblem(env, binding = publicBinding) {
   // Production is allowed only for this explicitly opted-in, protected test deployment.
   // Platform Authentication/owner membership must still be verified outside this guard.
   const ownerReview = env.SECRETLOVE_DEPLOYMENT_MODE === 'owner-only-review';
+  const publicRelease = env.SECRETLOVE_DEPLOYMENT_MODE === 'public-private-gate';
   if (env.VERCEL !== '1') return 'PREVIEW_BUILD_ONLY';
-  if (ownerReview) {
+  if (publicRelease) {
+    if (env.VERCEL_ENV !== 'production' || env.VERCEL_TARGET_ENV !== 'production')
+      return 'PUBLIC_PRODUCTION_CONTEXT_REQUIRED';
+    if (
+      binding.projectId !== 'prj_TH2Qq194T1GbYwRUJ0n7DfR7MXYK' ||
+      binding.teamId !== 'team_KJpwyYId3LugWZ4U1jnF4h67' ||
+      env.VERCEL_PROJECT_ID !== binding.projectId
+    )
+      return 'PUBLIC_PROJECT_REQUIRED';
+    if (
+      binding.origin !== 'https://secretlove-preview.vercel.app' ||
+      env.APP_ORIGIN !== binding.origin
+    )
+      return 'PUBLIC_ORIGIN_REQUIRED';
+    if (
+      !/^[a-z0-9]{20}$/.test(binding.supabaseProjectRef ?? '') ||
+      binding.supabaseProjectRef === 'samelfoyrujhcywcnofw' ||
+      env.SUPABASE_PROJECT_REF !== binding.supabaseProjectRef
+    )
+      return 'NEW_PRODUCTION_PROJECT_BINDING_REQUIRED';
+    if (env.ENABLE_EXPERIMENTAL_COREPACK !== '1') return 'COREPACK_REQUIRED';
+    if (!env.MAX_AUDIO_UPLOAD_BYTES) return 'AUDIO_LIMIT_REQUIRED';
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.PRIVACY_CONTACT_EMAIL ?? '') ||
+      /(^|[.@-])(example|invalid|test|localhost|pending)([.@-]|$)/i.test(
+        env.PRIVACY_CONTACT_EMAIL ?? '',
+      )
+    )
+      return 'REAL_PRIVACY_CONTACT_REQUIRED';
+    if (Object.entries(env).some(([key, value]) => key.startsWith('SECRETLOVE_TEST_') && value))
+      return 'DEPLOYED_TEST_NAMESPACE_DENIED';
+  } else if (ownerReview) {
     if (env.VERCEL_ENV !== 'production' || env.VERCEL_TARGET_ENV !== 'production')
       return 'OWNER_REVIEW_PRODUCTION_CONTEXT_REQUIRED';
     if (env.VERCEL_PROJECT_ID !== 'prj_TH2Qq194T1GbYwRUJ0n7DfR7MXYK')
@@ -29,10 +65,13 @@ export function previewProblem(env) {
       return 'EXACT_HTTPS_ORIGIN_REQUIRED';
     const database = new URL(env.NEXT_PUBLIC_SUPABASE_URL ?? '');
     if (
-      !/^[a-z0-9]{20}$/.test(env.PREVIEW_SUPABASE_PROJECT_REF ?? '') ||
+      !/^[a-z0-9]{20}$/.test(
+        (publicRelease ? env.SUPABASE_PROJECT_REF : env.PREVIEW_SUPABASE_PROJECT_REF) ?? '',
+      ) ||
       database.origin !== env.NEXT_PUBLIC_SUPABASE_URL ||
       database.protocol !== 'https:' ||
-      database.hostname !== `${env.PREVIEW_SUPABASE_PROJECT_REF}.supabase.co`
+      database.hostname !==
+        `${publicRelease ? env.SUPABASE_PROJECT_REF : env.PREVIEW_SUPABASE_PROJECT_REF}.supabase.co`
     )
       return 'ISOLATED_PROJECT_REFERENCE_REQUIRED';
   } catch {
@@ -44,9 +83,12 @@ export function previewProblem(env) {
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY === env.SUPABASE_SERVICE_ROLE_KEY
   )
     return 'SEPARATE_SERVER_CREDENTIAL_REQUIRED';
-  if (ownerReview && !env.SUPABASE_SERVICE_ROLE_KEY.startsWith('sb_secret_'))
+  if ((ownerReview || publicRelease) && !env.SUPABASE_SERVICE_ROLE_KEY.startsWith('sb_secret_'))
     return 'MODERN_SERVER_CREDENTIAL_REQUIRED';
-  if (ownerReview && !env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_'))
+  if (
+    (ownerReview || publicRelease) &&
+    !env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_')
+  )
     return 'MODERN_PUBLIC_CREDENTIAL_REQUIRED';
   const keys = ['VERIFICATION_HMAC_KEY', 'RATE_LIMIT_HMAC_KEY', 'CRON_SECRET'].map(
     (name) => env[name],
