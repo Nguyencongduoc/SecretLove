@@ -1,4 +1,36 @@
-# Current G4 Production configuration (2026-10-16)
+# Current G6 protected HTTPS acceptance (2026-10-17)
+
+Current evidence supersedes earlier pending freeze/deployment/contact statements below; those sections retain their historical context. See [G6 acceptance report](G6_PRODUCTION_HTTPS_ACCEPTANCE.md).
+
+- [x] Frozen source `f1832f7be25a312974d79bcc9a44a9d86ffe7942`; protected Production deployment `dpl_BMTFiQmsxvrpSYhUdW1dsM5z5rrB` READY. Canonical alias assignment completed under separate approval; no public opening.
+- [x] Direct unauthenticated HTTPS requests to canonical, immutable READY URL, system alias and historical review alias redirect to Vercel SSO. This demonstrates protection on the tested requests, not exhaustive bypass/path coverage.
+- [x] **PASS, operator-reported:** after Vercel Owner login, homepage loads without error and final URL remains `https://secretlove-production.vercel.app/`.
+- [x] **PASS, operator-reported direct Gmail SMTP probe:** accepted, Inbox, expected sender and unchanged fake callback link. Real Invite/Recovery happy-path results are recorded below; target replay/security negatives remain NOT TESTED.
+- [x] **PASS, operator-reported:** six no-Creator-session page/API checks; Studio/operator redirect to login and owner/operator APIs return 401 `AUTH_REQUIRED`. Vercel login does not grant app access in the tested state.
+- [x] Exact one-account Owner invitation scope explicitly approved: check existing identity, invite `nguyencongduociot2124@gmail.com` once only if absent in Production. No execution PASS claimed.
+- [x] **PASS, operator-reported:** account absent before Invite; invitation successful; Inbox delivery; correct domain/callback; expected pending page. Auth UUID/confirmation metadata not independently verified; email sender not separately restated.
+- [x] Fresh Recovery/password setup/local sign-out/login packet explicitly approved for the invited Owner account; no execution PASS claimed.
+- [x] **PASS, operator-reported:** Recovery successful, Inbox, correct domain/reset page, password update and local sign-out/login successful, expected pending-access page. No credential/session values collected.
+- [x] Operator supplied exact Auth UID and confirmed-email status; one-account bootstrap SQL/verification prepared in [G6 bootstrap packet](G6_OPERATOR_BOOTSTRAP.md). No independent provider metadata query claimed.
+- [x] Owner explicitly approved exact first-operator transaction once and read-only verification; SQL scope unchanged from reviewed packet.
+- [x] Operator reports SQL execution without error; no direct agent SQL or credential access.
+- [x] **PASS, operator-reported bootstrap:** actual counts 1/1/1/0, matching exact target operator/audit and no target Creator approval. No agent provider query.
+- [x] Owner approved one operator TOTP enrollment and pre/post-MFA checks per G6 packet. No execution PASS claimed.
+- [x] **PASS, operator-reported:** pre-MFA redirect/403. Operator reports factor state unclear, Enroll/Verify error and failed post-MFA/continued-Creator-denial checks.
+- [ ] **BLOCKED:** MFA acceptance FAIL on operator report; actual error/phase and route statuses pending. Creator authorization result NOT VERIFIED, not evidence of bypass or correct denial. Stop retries/deletions and collect read-only evidence; preserve protection. Recovery replay/Creator approval remain separate scopes.
+- [x] Read-only diagnosis: expected READY deployment/protection still present; anonymous MFA route returns SSO 302 and route exists in frozen source. Operator clarifies Google Authenticator QR-scan failure and reports missing link; actual authenticated HTTP/browser error pending. No AAL2 or QR compatibility PASS.
+- [x] **PASS, operator-reported correction:** `/operator/security` displays “Operator two-factor security”; no missing-route defect established. QR-scan usability and TOTP/AAL2 remain unresolved; do not re-enroll/remove factors or Verify during current diagnosis.
+- [x] Prepare [local MFA remediation scope](G6_MFA_REMEDIATION_PLAN.md) after repeated scan failure. Implementation approval pending; no local patch/target PASS. Manual fallback does not recover an already discarded pending-factor key; separate inventory/retirement and redeployment gates remain.
+- [x] Subsequent approval: local MFA patch implemented and validated. Typecheck/lint/build PASS; 139 portable tests PASS/2 SKIPPED; 22 mocked desktop/mobile component tests PASS. Offline CLI selection 167 files/no credentials/private artifacts. No changes to server checks, migrations, dependencies or environment.
+- [ ] Review new source/freeze/commit and exact protected deployment scope; actual MFA/manual key/phone scanning and pending-factor reconciliation remain NOT TESTED on Production. No commit/deploy/provider mutation performed; public release remains NO-GO.
+- [x] Prepare [exact 11-file MFA source-freeze candidate](G6_MFA_SOURCE_FREEZE_REVIEW.md) and commit message; separate local-commit approval required. App validation carried by exact-source continuity; no new live/remote verification claimed.
+- [x] Source review PASS: exact 11 paths/empty index; 167 tested inputs unchanged; credential-marker/whitespace/11 Git exclusion checks PASS; nine migrations/server authorization/dependencies/hosting/guard unchanged. No staging/commit/push/deploy. Source freeze remains pending explicit local-commit approval.
+- [ ] Authenticated Creator/operator/MFA, recipient gate, cookies/CSP/Origin and complete media/scene/operations acceptance.
+- [ ] Actual modern private Storage GET, >4.5 MB upload/stream, Range/HEAD/416, isolation and revocation; local optional live Storage test remains SKIPPED / NOT TESTED.
+- [ ] Resolve old hostname response: `secretlove-preview.vercel.app` returned 404 in the last direct probe despite configured redirect metadata. No automatic domain change is authorized.
+- [ ] Separately approve any real mail/account/bootstrap/fixture/cleanup scope and final G7 public opening. **Public release remains NO-GO.**
+
+# Historical G4 Production configuration (2026-10-16)
 
 - [x] **G5 local review PASS:** 164 inputs exactly match validated G4.4; installed CLI selection 164 files/nine migrations, 24 deny/17 retain probes, 0 network attempts; exact 16-file commit candidate, bounded marker/whitespace checks and 11 Git exclusion probes PASS. See [G5 review](G5_PRODUCTION_SOURCE_FREEZE_REVIEW.md). No fresh app test/build execution claimed; G4.4 checks carried forward by exact continuity.
 - [ ] **G5 actual source freeze PENDING:** separately approve/stage/commit only the reviewed 16-file manifest and record its actual SHA. No commit, push, provider settings, deployment or public opening is authorized by this review; pre-attempt blockers remain.
