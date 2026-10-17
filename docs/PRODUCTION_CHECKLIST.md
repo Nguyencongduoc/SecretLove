@@ -1,4 +1,37 @@
-# Current G6 protected HTTPS acceptance (2026-10-17)
+# Current G6 outcome update (2026-10-17)
+
+Latest Owner decision: G8.3 PAUSED after the one approved helper attempt returned401. Attempt FAIL; worker execution/post-cleanup acceptance unconfirmed. Marker preserved, no retry/diagnosis/cleanup continuation. README/reporting commit and GitHub push authorized; no deployment/settings/data/credential changes. See [current G8 review](G8_COMPLETION_REVIEW.md); older pending/no-invocation statements below are historical.
+
+Latest G8 gate: [completion review](G8_COMPLETION_REVIEW.md), documentation/readiness review GO with operational blockers retained; five-scenario TABLETOP PASS, actual cleanup/restore NOT TESTED/NOT AUTHORIZED. No repeated HTTP/helper/app tests, remote operations or declined provider investigation. Existing six-job snapshot is historical; current preflight gaps and exact future authority remain STOP conditions. Preserve earlier operator-accepted release exceptions without treating them as test success.
+
+Current consolidated decision: [G7 completion report](G7_PUBLIC_ACCESS_REPORT.md). Approved public-opening work complete with owner-accepted exceptions; canonical access, scoped denial/protection and repaired307 redirect PASS. Full G6/security/transport/operations acceptance remains incomplete, deferred tests NOT TESTED. Owner requests G8 preparation; this is not global cleanup/scheduler/deployment authorization. Earlier execution-pending/redirect-failure entries below are historical where superseded by the report.
+
+G8 first actual observation: [G8 report](G8_OPERATIONS_REPORT.md),13/13 sampled public/denial/redirect/protection requests PASS and current READY Production/canonical binding confirmed. G8 IN PROGRESS: provider aggregate metrics, worker and recovery operations remain unverified; no cron/cleanup/automation or remote mutation performed.
+
+G7 on verified `codex/g7-public-access`; see [G7 packet](G7_PUBLIC_ACCESS_RELEASE.md). Owner explicitly approves the exact public-opening/containment action despite NOT TESTED security/transport/operations evidence; technical recommendation remains NO-GO, test statuses unchanged. Three-hostname inventory operator-confirmed (canonical Production, review Preview, old hostname307 redirect). Action is APPROVED / NOT EXECUTED: available Dashboard browser is at Vercel login. Operator execution/session handoff and post-save anonymous verification pending; no protection/config/deployment change performed by agent.
+
+Subsequent G7 update: operator reports Standard Protection saved, then corrects homepage-browser result to “Không”. Agent directly observes canonical homepage and runs eight stateless GETs:7 scoped PASS (root200, APIs401, app pages307 login, Preview/generated302 SSO);1 FAIL (old hostname404 instead of307). No agent setting change/containment executed. Canonical availability PASS for measured requests, owner's browser-path discrepancy distinct; full G7 security/media/operations acceptance incomplete. See current G7 report; earlier execution-pending statement immediately above is historical.
+
+Latest owner confirmation: “đã oke” after direct canonical link. Homepage access PASS — operator and direct stateless sample; previous browser issue is historical/unknown cause. Approved public-access action complete by operator report; old-hostname404 and untested security/media/operations remain unresolved. No full release certification, repeated protection save or automatic G8 authorization.
+
+Latest redirect repair supersedes old-hostname pending statements: exact one-domain PATCH approved/performed once; old root and login/synthetic query now307 to canonical, correct new redirect alias metadata, canonical deployment unchanged. Seven post-repair HTTP checks PASS including canonical200, anonymous APIs401 and Preview/generated SSO302. See [completed repair](G7_LEGACY_HOSTNAME_REPAIR.md). No redeploy/protection/source/environment/Supabase change; deferred tests remain NOT TESTED.
+
+Authoritative current evidence: [G6_CURRENT_ACCEPTANCE_STATUS.md](G6_CURRENT_ACCEPTANCE_STATUS.md). Earlier checklists below are retained as historical preparation/execution records, not a second unresolved MFA failure on the repaired flow.
+
+- [x] Exact approved MFA commit `4a169ff185bd464516cdebf24b066a7963ca05d6`; one protected Production deployment READY as `dpl_C7vmfH8rjnpSXQHBvMoQ4GEe6vCa`; separately approved canonical alias points to it; sin1 function samples. No public opening.
+- [x] Operator-reported exact pending-factor retirement and replacement Google Authenticator QR/TOTP success; Operator page/reports200 and pre-Creator Studio/API denial confirmed.
+- [x] Operator-reported exact one-account Creator approval revision1, Dashboard and actual collection/detail HTTP200.
+- [x] Operator-reported A/B image/MP3 upload, persisted music Enable, advancing owner preview, published fixtures; A Close/unpublish/old-link/new-link lifecycle PASS, B unaffected.
+- [x] Actual operator-run header suite: two routes200,28 assertions PASS. Recipient cookie HttpOnly/Secure/Lax/Path=/ PASS by operator inspection; values never collected.
+- [ ] Full private audio/expected bytes/HEAD/Range206/416/recipient isolation/revoked-media target evidence. Original suite STOP_FIXTURE_STATE with A/B metadata assertion FAIL; follow-up diagnosis explicitly skipped by owner. Do not mark skipped/unreached checks PASS.
+- [ ] Remaining locked content/preload/anonymous Storage, cross-Creator, recovery replay/expiry/Origin/trusted-IP and device/fallback evidence described in current report.
+- [ ] Report/hold/deletion/cleanup/retention/monitoring/quota/rollback operational acceptance and legacy-hostname decision. No cleanup invocation or policy-compliance claim.
+- [x] Operator-returned read-only snapshot: private bucket flags confirmed in returned metadata, queue empty; no agent remote SQL. Project/timing attribution awaits explicit confirmation.
+- [x] Operator clarifies incomplete uploads explain zero audio/one-photo snapshot; no program defect reported, no code fix inferred.
+- [ ] Audio target acceptance remains NOT TESTED / fixture incomplete; no cleanup, upload or skipped diagnostic repeated. One expired recovery-consumption record/empty maintenance does not prove worker acceptance.
+- [ ] G6 complete / G7 public opening: **NO-GO pending the remaining gates**. Continue existing protected evaluation; no automatic public action, commit, push or redeployment.
+
+# Historical G6 protected HTTPS acceptance (2026-10-17)
 
 Current evidence supersedes earlier pending freeze/deployment/contact statements below; those sections retain their historical context. See [G6 acceptance report](G6_PRODUCTION_HTTPS_ACCEPTANCE.md).
 

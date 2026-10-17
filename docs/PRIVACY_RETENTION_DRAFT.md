@@ -1,6 +1,8 @@
 # Internal privacy, abuse and retention planning draft
 
-Status: owner-proposed targets for the MVP/restricted Private Preview; **not published, legally reviewed or operationally verified**. No compliance claim. Contact email PENDING; do not invent an address. Preview is owner-only Vercel Authentication on a proposed project whose exact HTTPS origin is pending. No automatic historical cleanup or public release.
+Current G6 status (2026-10-17): **draft, not final or legally/operationally certified**. A draft disclosure is implemented on the protected deployed `/privacy` page; it is not a final public policy. Contact `nguyencongduociot2124@gmail.com` is operator-controlled/verified, canonical Production/new backend are established, and report/role/hold/audit/retention code exists through009. Earlier planning/“not implemented” statements below describe historical proposals, not current code. Actual worker/provider retention/backup capabilities still need evidence. No public opening or historical cleanup authorized by this update. See [G6 operations review](G6_OPERATIONS_READINESS.md).
+
+Owner decision in G6: **application/security logs have a maximum30-day retention target; shorter Free/Hobby history is acceptable**. This removes any implied minimum30-day searchable-history requirement or need to buy extended logging. Accessible history is not proof of provider-internal physical deletion; actual log categories/drains/exports/retention and provider policy remain to be verified. Current runtime wording is still draft; any final wording change follows a separate reviewed source/deployment gate. No final privacy-policy publication or compliance claim.
 
 ## Operator and request workflow
 
@@ -16,7 +18,7 @@ Selected rejection approach: **report-led suspension after operator review**. Cl
 | --- | --- | --- |
 | Active letters/private media | Until creator deletes letter or account closes, subject to applicable obligations | Implemented letter deletion; account workflow/operational proof pending |
 | Abuse reports | 90 days after resolution, unless documented investigation/retention requirement | Report system/hold authority/automatic pruning not implemented; clock must start at resolution |
-| App/security logs | 30 days, excluding secrets/private letter contents | Verify Vercel/Supabase plan, drains/provider settings, access and app redaction. Configured retention NOT VERIFIED |
+| App/security logs | Maximum30days; shorter plan history accepted by owner, excluding secrets/private letter contents from application logging | Actual plan/window/drains/provider-internal retention NOT VERIFIED; no requirement to purchase30-day history |
 | Backups | Target maximum 30 days, subject to real provider capabilities | Confirm project plan/PITR/backup schedule/off-site exports, deletion expiry and support policy. Target NOT VERIFIED; unsupported target is a blocker |
 | Deleted active data | Revoke application access promptly; physical deletion through authenticated durable queue | No deadline promise until worker/provider/outage/cron verified; in-flight/delivered copies cannot be recalled |
 | Raw staged MP3 chunks | Short-lived pending transfer; expire after 15 minutes, queue/orphan reconciliation | Logical expiry is not physical erasure; confirm v3 worker delivery and backlog/outage handling |

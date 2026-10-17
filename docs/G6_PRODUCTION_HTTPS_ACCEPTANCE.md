@@ -1,5 +1,7 @@
 # G6 — Protected Production HTTPS acceptance
 
+**Latest status (2026-10-17): [current consolidated acceptance report](G6_CURRENT_ACCEPTANCE_STATUS.md).** Runtime is now frozen/deployed at `4a169ff185bd464516cdebf24b066a7963ca05d6`, deployment `dpl_C7vmfH8rjnpSXQHBvMoQ4GEe6vCa`, under separately approved commit/deploy/alias gates. Replacement QR/TOTP, role separation, Creator flow, A link revocation, hosted header samples and four recipient-cookie attributes PASS on the documented direct/operator evidence. Original owner-media helper stopped on metadata; diagnosis was skipped at owner request, and unreached media/security/operations checks remain unverified. Public opening remains NO-GO. The record below describes earlier stages and initial failures; its old frozen SHA/pending assertions are historical where superseded.
+
 Date: 2026-10-17, Asia/Bangkok. Branch: `codex/g6-production-https-acceptance`. Frozen deployed source: `f1832f7be25a312974d79bcc9a44a9d86ffe7942`. Branch/HEAD and clean working tree were directly rechecked before this documentation update. Earlier G4/G5 reports are historical preparation snapshots; this report records subsequent approvals and execution without rewriting their evidence.
 
 ## Scope and target
