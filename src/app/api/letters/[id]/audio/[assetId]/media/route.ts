@@ -3,6 +3,7 @@ import { ownerAudio } from '@/lib/server/music';
 import { audioResponse } from '@/lib/server/audio-response';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; assetId: string }> },

@@ -109,7 +109,9 @@ test('complete UI gift with photos, music, decoded QR, every scene and real medi
     });
     await page.getByLabel('I have permission to use and share this music.').check();
     const uploaded = page.waitForResponse(
-      (r) => r.url().endsWith(`/letters/${id}/music`) && r.request().method() === 'POST',
+      (r) =>
+        new RegExp(`/letters/${id}/music/ingests/[0-9a-f-]+$`).test(r.url()) &&
+        r.request().method() === 'POST',
     );
     await page.getByRole('button', { name: 'Upload private music', exact: true }).click();
     expect((await uploaded).status()).toBe(201);

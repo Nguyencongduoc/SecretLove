@@ -46,14 +46,16 @@ try {
   const reusable = marked.filter(
     (user) => !active.data?.some((letter) => letter.owner_id === user.id),
   );
-  if (reuse && reusable.length < 3) throw new Error();
+  const offset = Number(process.env.SECRETLOVE_REUSE_FIXTURE_OFFSET ?? '0');
+  if (!Number.isSafeInteger(offset) || offset < 0 || (reuse && reusable.length < offset + 3))
+    throw new Error();
   // Dedicated gift creator keeps the full suite within the real upload budget.
   // Never raise limits or clear rate counters to make a test pass.
   for (const [index, name] of ['A', 'B', 'GIFT'].entries()) {
     const email = `secretlove-test-${randomUUID()}@example.com`,
       password = randomBytes(32).toString('base64url');
     const { data, error } = reuse
-      ? await service.auth.admin.updateUserById(reusable[index].id, { password })
+      ? await service.auth.admin.updateUserById(reusable[index + offset].id, { password })
       : await service.auth.admin.createUser({
           email,
           password,

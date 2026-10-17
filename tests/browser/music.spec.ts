@@ -141,7 +141,7 @@ test('private MP3 upload, owner controls, automatic recipient soundtrack, isolat
     await expect(page.getByLabel('Enable background music')).toBeDisabled();
     // Forward the real server's denial to exercise inline feedback. Chromium
     // rewrites Origin on native same-origin requests, so route.fetch sends it.
-    const musicRoute = `**/api/letters/${id}/music`;
+    const musicRoute = `**/api/letters/${id}/music/ingests`;
     await page.route(musicRoute, async (route) => {
       const denied = await route.fetch({
         headers: { ...route.request().headers(), origin: 'http://10.136.153.57:3000' },
@@ -149,7 +149,7 @@ test('private MP3 upload, owner controls, automatic recipient soundtrack, isolat
       await route.fulfill({ response: denied });
     });
     const blockedUpload = page.waitForResponse(
-      (r) => r.url().endsWith(`/letters/${id}/music`) && r.request().method() === 'POST',
+      (r) => r.url().endsWith(`/letters/${id}/music/ingests`) && r.request().method() === 'POST',
     );
     await page.getByRole('button', { name: 'Upload private music', exact: true }).click();
     expect((await blockedUpload).status()).toBe(403);
@@ -158,7 +158,9 @@ test('private MP3 upload, owner controls, automatic recipient soundtrack, isolat
     );
     await page.unroute(musicRoute);
     const badUpload = page.waitForResponse(
-      (r) => r.url().endsWith(`/letters/${id}/music`) && r.request().method() === 'POST',
+      (r) =>
+        new RegExp(`/letters/${id}/music/ingests/[0-9a-f-]+$`).test(r.url()) &&
+        r.request().method() === 'POST',
     );
     await page.getByRole('button', { name: 'Upload private music', exact: true }).click();
     expect((await badUpload).status()).toBe(422);
@@ -182,12 +184,28 @@ test('private MP3 upload, owner controls, automatic recipient soundtrack, isolat
     });
     await page.getByLabel('I have permission to use and share this music.').check();
     await expect(musicPanel.getByRole('alert')).toHaveCount(0);
+    const partSizes: Promise<number>[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'PUT' && request.url().includes(`/letters/${id}/music/ingests/`))
+        // Chromium may omit Blob postData; use its transmitted Content-Length instead.
+        partSizes.push(request.headerValue('content-length').then((value) => Number(value)));
+    });
     const upload = page.waitForResponse(
-      (r) => r.url().endsWith(`/letters/${id}/music`) && r.request().method() === 'POST',
+      (r) =>
+        new RegExp(`/letters/${id}/music/ingests/[0-9a-f-]+$`).test(r.url()) &&
+        r.request().method() === 'POST',
     );
     await page.getByRole('button', { name: 'Upload private music', exact: true }).click();
     const uploadResponse = await upload;
     expect(uploadResponse.status()).toBe(201);
+    expect(fullSong.length).toBeGreaterThan(4500000);
+    expect(partSizes.length).toBe(Math.ceil(fullSong.length / 1048576));
+    const wireSizes = await Promise.all(partSizes);
+    expect(wireSizes).toEqual(
+      Array.from({ length: partSizes.length }, (_, index) =>
+        Math.min(1048576, fullSong.length - index * 1048576),
+      ),
+    );
     letter = (await uploadResponse.json()).data;
     const aid = letter.audioAsset.id;
     expect(letter.audioAsset.status).toBe('ready');
@@ -440,10 +458,10 @@ test('private MP3 upload, owner controls, automatic recipient soundtrack, isolat
     expect(
       (await publicStorage.storage.from('letter-assets').download(oldPath)).error,
     ).not.toBeNull();
-    const cleanup = await owner.get('/api/cron/cleanup', {
-      headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
-    });
-    expect(cleanup.status()).toBe(200);
+    // Delete only the exact object this test created/detached. Global cleanup
+    // would also purge historical fixtures, which requires separate approval.
+    expect(oldPath).toBe(`${process.env.TEST_CREATOR_A_ID}/${id}/${aid}.mp3`);
+    expect((await admin.storage.from('letter-assets').remove([oldPath])).error).toBeNull();
     expect((await admin.storage.from('letter-assets').download(oldPath)).error).not.toBeNull();
     await page.goto(`/studio/letters/${id}`);
     await expect(page.getByLabel('Enable background music')).toBeDisabled();
@@ -452,7 +470,9 @@ test('private MP3 upload, owner controls, automatic recipient soundtrack, isolat
       .setInputFiles({ name: 'replacement.mp3', mimeType: 'audio/mpeg', buffer: silentMp3() });
     await page.getByLabel('I have permission to use and share this music.').check();
     const replace = page.waitForResponse(
-      (r) => r.url().endsWith(`/letters/${id}/music`) && r.request().method() === 'POST',
+      (r) =>
+        new RegExp(`/letters/${id}/music/ingests/[0-9a-f-]+$`).test(r.url()) &&
+        r.request().method() === 'POST',
     );
     await page.getByRole('button', { name: 'Upload private music', exact: true }).click();
     expect((await replace).status()).toBe(201);

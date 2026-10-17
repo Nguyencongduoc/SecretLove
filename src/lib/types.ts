@@ -9,10 +9,12 @@ export type RichTextNode = {
 export type RichTextDoc = { type: 'doc'; content: RichTextNode[] };
 export type Photo = { id: string; altText: string; status: 'pending' | 'ready'; createdAt: string };
 export type Letter = {
+  moderation?: { state: 'clear' | 'held'; version: string };
   heartCustomization: import('@/lib/validation/heart').HeartCustomization;
   sceneText: import('@/lib/validation/scene-text').SceneText;
   music: import('@/lib/validation/music').MusicConfiguration;
   audioAsset: { id: string; status: 'pending' | 'ready'; durationSeconds: number } | null;
+  audioUpload?: { id: string; status: 'collecting' | 'finalizing'; expiresAt: string } | null;
   id: string;
   title: string;
   recipientDisplayName: string | null;

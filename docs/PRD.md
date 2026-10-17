@@ -1,5 +1,13 @@
 # SecretLove — MVP Product Requirements
 
+G4.4 update (2026-10-16): approved Production origin `https://secretlove-production.vercel.app`, new backend `mdoaageegovutlxhhicz`. Operator-reported G4.1–G4.3 provisioning/migration/catalog/Auth configuration PASS supersedes pending-backend language below, not live acceptance requirements. Local binding/guard/tests/docs changes are authorized; see [current G4 evidence](G4_PRODUCTION_CONFIGURATION_STATUS.md). SMTP/contact, operational credentials, account bootstrap and deployment/public-opening gates remain pending.
+
+Latest (2026-10-16): owner approved G3 on its implementation branch. Local source now implements invitation-only application signup, explicit Creator approval, operator registry/MFA, report-led holds and scoped deletion, privacy/request drafts and the new-backend public guard. See [G3 implementation and verification limits](G3_PUBLIC_RELEASE_IMPLEMENTATION.md). Provider configuration, actual policy/contact, new backend, mail/MFA/browser/HTTPS/Storage acceptance and deployment remain pending. Historical G2 proposal language below is superseded by this status, not a hosted completion claim. The earlier MFA deferral does not exclude the now-approved operator MFA requirement.
+
+## Historical G2 public-release design baseline
+
+G1 approved a public website with server-gated private letters, a separate clean Production Supabase and approved-Creator-only initial onboarding. G2 is authorized for design on `codex/g2-production-design`; [G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md) proposes invitation/recovery, explicit Creator approval, operator MFA, report-led letter holds, privacy/deletion operations and a bound public deployment mode. These are **not implemented or accepted** by approving G2 work. Open Creator signup is outside the initial release; recipients do not need Vercel/Creator accounts. Name/DOB remains low-assurance, not identity proof. G3 implementation requires review of that design; G4/G5/G7 configuration/deployment/public-opening approval remain separate. Contact/provider facts/retention remain pending; public release NO-GO.
+
 Status: Day 1 Creator Studio and Day 2 recipient journey are implemented. The latest user instruction additionally authorizes private background MP3 uploads and playback as a Day 2 extension. Broader theme/background/animation editors remain deferred; protected Heart/Closing copy and the bounded particle-heart/text-ring subset are explicitly authorized. Historical results are in DAY2_TEST_REPORT.md; current music evidence is in MUSIC_TEST_REPORT.md and TASKS.md.
 Planning date: 2026-10-14 (Asia/Bangkok). The three implementation days start after approval and environment readiness.
 

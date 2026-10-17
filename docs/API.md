@@ -1,5 +1,15 @@
 # SecretLove — API Contracts
 
+G4.4 update (2026-10-16): the approved public API origin is `https://secretlove-production.vercel.app`, backend `mdoaageegovutlxhhicz`; routes/contracts and historical Preview/owner-only modes are unchanged. Provider Auth configuration is operator-reported PASS; real callbacks, signup denial, authenticated APIs and private media on the HTTPS target remain NOT TESTED. See [G4 evidence](G4_PRODUCTION_CONFIGURATION_STATUS.md).
+
+G3 (2026-10-16): the G2 report/operator contracts below are implemented locally. Operator APIs use the constrained catch-all handler `/api/operator/[...segments]`, verifying the exact method/segment pattern and server-derived identity. All operator data/actions require registry plus verified AAL2; Creator approval is independent. Signup now returns `403 REGISTRATION_CLOSED`, invitation callback accepts `type=invite` without recovery proof, and pending users can recover/sign out. See [implementation evidence/limits](G3_PUBLIC_RELEASE_IMPLEMENTATION.md). Provider-backed/browser/HTTPS acceptance remains pending; old contract sections are historical where superseded.
+
+## Historical G2 public-release contract proposal
+
+[G2_PUBLIC_PRODUCTION_DESIGN.md](G2_PUBLIC_PRODUCTION_DESIGN.md) section 5 defines proposed bounded `POST /api/reports` (generic 202 receipt including unknown well-shaped share locators), operator report list/detail/resolve, Creator approval/suspension, letter hold/clear and exact-letter operator deletion. Operator operations require verified identity + aal2 + registry authorization, expected string versions, Origin/size/rate checks and atomic audit; no public existence/status/content oracle, bulk account removal, automatic invite mail or raw provider/Storage output.
+
+Production signup is proposed to return 403 REGISTRATION_CLOSED before provider calls, with provider signup disabled too. Authenticated-but-unapproved users get 403 CREATOR_NOT_APPROVED on Studio/owner APIs; recovery/logout remain distinct. Existing recipient inactive/held/unknown shares stay generic 404, missing/expired sessions on active available letters stay 401. Invite callback must not issue recovery proof; actual password reset still consumes 007 proof. These changes require G3 approval and tests; existing endpoint implementation below is historical until changed under that scope.
+
 Status: Creator/auth/photo, publication/recipient and the authorized private music extension are implemented. All paths are same-origin through a server-only DAL. `GET /api/letters` returns at most 20 active owner cards with `nextCursor` null. Templates remain trusted; approved V1 music and bounded particle-heart settings plus protected scene copy are editable. See DAY2_TEST_REPORT.md and MUSIC_TEST_REPORT.md for evidence.
 
 Implemented auth mutations: `POST /api/auth/login`, `/signup`, `/recover`, `/reset`, `/logout`; email confirmation/recovery uses `GET /auth/callback`. `GET /api/cron/cleanup` is a separate server bearer-authorized maintenance route, with aggregate counts only. Owner photo mutations return updated string versions; removal/deletion reports pending physical cleanup. See SETUP.md for required configuration.
@@ -190,3 +200,18 @@ Music configuration wire shape remains V1 with startPolicy=manual for interactio
 PATCH /api/letters/{id}: optional nullable heartCustomization plus existing expectedVersion; strict inner V1 object described in PARTICLE_HEART_SETUP.md. Omitting preserves it; null resets only heart appearance/rings. No generic config writer or new endpoint. Owner/draft/version/Origin/rate checks unchanged. Invalid phrases/presets/unknown keys/oversized payload return existing validation errors; unauthorized creator gets unchanged 404/401 semantics.
 
 Owner Letter DTO now includes resolved heartCustomization; recipient presentation.configuration.heartCustomization is derived only from the authorized content response. Bootstrap/locked page/metadata/dashboard cards omit phrases. Literal text/glyph rendering does not interpret scripts. Music upload/settings/remove preserve customization; heart saves preserve music. Published content stays frozen, republish keeps existing rotation/revocation behavior. Schema/template version and concurrency/access versions remain distinct.
+
+## Prompt 07 — private chunk transport (latest)
+
+Studio now uses these same-origin owner/Origin/rate-authorized endpoints. Private Storage paths and credentials are never returned.
+
+| Endpoint | Request | Result |
+| --- | --- | --- |
+| POST /api/letters/{id}/music/ingests | Strict <=4 KiB JSON: expectedVersion, byteSize, digest (lowercase SHA-256), fileType (audio/mpeg or audio/mp3), extension=mp3, rightsAcknowledged=true | 201 ingest id, candidate assetId, partCount; reserves quota and advances parent version |
+| PUT /api/letters/{id}/music/ingests/{ingestId}/parts/{index} | application/octet-stream; exact expected part size <=1 MiB | 200 stored=true; same part/hash is idempotent; changed part is 422 |
+| POST /api/letters/{id}/music/ingests/{ingestId} | Strict empty JSON <=256 bytes | 201 updated owner Letter only after full manifest, server codec/duration checks and guarded ready attach |
+| DELETE /api/letters/{id}/music/ingests/{ingestId} | No arbitrary path or body fields | Updated owner Letter; pending bytes queued, committed ready asset protected |
+
+One pending ingest/letter, at most sixteen parts, 15-minute expiry, 90-second commit lease, original upload/mutation quotas plus 120 part requests/min/creator. Owner Letter adds audioUpload=null or {id,status,expiresAt}; begin then commit/cancel advances expected version twice. Concurrent/stale/published/incomplete state returns 409; anonymous 401/foreign owner 404; oversize 413; invalid MIME 415; changed manifest/invalid audio 422; upstream failures remain truthful retryable errors. See CHUNK_AUDIO_SETUP.md for private gateways and migration 008.
+
+Existing music preferences/removal and owner/recipient media paths are unchanged. Authorized audio GET now streams upstream bytes with canonical single Range instead of buffering the entire object; GET omits Content-Length, HEAD returns authorized metadata. Every new media request enforces current ownership or letter-bound recipient access. No signed/public/external music URL. The legacy multipart endpoint remains compatible locally but large requests on that endpoint are not certified for Vercel; Studio uses the approved chunks. Actual target compatibility remains NOT TESTED until an explicitly approved protected deployment.

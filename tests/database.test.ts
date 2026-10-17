@@ -5,6 +5,355 @@ import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { DEFAULT_SCENE_TEXT } from '@/lib/validation/scene-text';
 import { DEFAULT_HEART } from '@/lib/validation/heart';
 let db: PGlite;
+let approvalSchemaReady = false;
+// G3 fixtures exist only in this disposable PGlite database, never the hosted cohort.
+async function operator() {
+  const id = randomUUID();
+  await db.query('insert into auth.users(id) values($1)', [id]);
+  await db.query('insert into private.operator_accounts(user_id) values($1)', [id]);
+  return id;
+}
+describe('G3 approval, moderation, report and deletion boundaries', () => {
+  it('catalog covers every Creator and recipient gateway including independent finalize paths', async () => {
+    const definitions = await db.query<{ name: string; body: string }>(
+      "select n.nspname||'.'||p.proname as name,pg_get_functiondef(p.oid) as body from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private')",
+    );
+    const funcs = new Map(definitions.rows.map((r) => [r.name, r.body]));
+    const direct = [
+      'private.lock_letter',
+      'private.sl_ingest_lock',
+      'public.sl_create_letter',
+      'public.sl_gate_flags',
+      'public.sl_photo_finalize',
+      'public.sl_photo_path',
+      'public.sl_owner_audio',
+      'public.sl_share',
+      'public.sl_ingest_flags',
+      'public.sl_audio_finalize',
+      'public.sl_audio_reserve',
+      'public.sl_ingest_begin',
+      'public.sl_delete_letter',
+    ];
+    for (const name of direct)
+      expect(funcs.get(name), name).toContain('private.require_approved(a)');
+    for (const name of [
+      'sl_save_letter',
+      'sl_photo_reserve',
+      'sl_photo_change',
+      'sl_music_settings',
+      'sl_music_remove',
+      'sl_publish',
+      'sl_unpublish',
+    ])
+      expect(funcs.get(`public.${name}`), name).toContain('private.lock_letter');
+    for (const name of ['sl_ingest_part', 'sl_ingest_commit_begin', 'sl_ingest_commit_finish'])
+      expect(funcs.get(`public.${name}`), name).toContain('private.sl_ingest_lock');
+    for (const name of [
+      'public.sl_bootstrap',
+      'public.sl_verification_gate',
+      'public.sl_session_issue',
+      'private.recipient_letter',
+    ]) {
+      expect(funcs.get(name), name).toContain('private.recipient_owner(share_digest)');
+      expect(funcs.get(name), name).toContain("m.state='held'");
+    }
+    for (const name of ['sl_recipient_content', 'sl_recipient_photo', 'sl_recipient_audio'])
+      expect(funcs.get(`public.${name}`), name).toContain('private.recipient_letter');
+    for (const name of [
+      'sl_photo_fail',
+      'sl_audio_fail',
+      'sl_ingest_release',
+      'sl_ingest_cancel',
+      'sl_session_close',
+    ])
+      expect(funcs.get(`public.${name}`), name).not.toContain('private.require_approved');
+    const predicate = await db.query<{ safe: boolean }>(
+      "select p.prosecdef and p.pronargs=0 and p.proconfig @> array['search_path=\"\"'] and has_function_privilege('authenticated',p.oid,'EXECUTE') and not has_function_privilege('anon',p.oid,'EXECUTE') as safe from pg_catalog.pg_proc p where p.oid='public.sl_creator_is_active()'::regprocedure",
+    );
+    expect(predicate.rows[0].safe).toBe(true);
+  });
+  it('does not auto-approve Auth users; RLS boolean is the sole browser RPC exception', async () => {
+    const id = randomUUID();
+    await db.query('insert into auth.users(id) values($1)', [id]);
+    expect(await call('sl_creator_status', [id])).toEqual({ status: 'not_approved', version: '0' });
+    await expect(call('sl_create_letter', [id, 'Denied'])).rejects.toThrow('CREATOR_NOT_APPROVED');
+    await asRole('authenticated', id, async () => {
+      expect(await call('sl_creator_is_active', [])).toBe(false);
+      expect((await db.query('select * from public.creator_letters')).rows).toHaveLength(0);
+      await expect(call('sl_creator_status', [id])).rejects.toThrow('permission denied');
+      await expect(db.query('select * from private.creator_access')).rejects.toThrow(
+        'permission denied',
+      );
+    });
+    await asRole('anon', id, async () => {
+      await expect(call('sl_creator_is_active', [])).rejects.toThrow('permission denied');
+    });
+  });
+  it('operator-only account approves explicitly; stale revisions and forged nonoperators are denied', async () => {
+    const op = await operator(),
+      user = randomUUID();
+    await db.query('insert into auth.users(id) values($1)', [user]);
+    await expect(
+      call('sl_creator_access_set', [user, user, '0', 'approve', 'review_complete', randomUUID()]),
+    ).rejects.toThrow('OPERATOR_REQUIRED');
+    expect(
+      await call('sl_creator_access_set', [
+        op,
+        user,
+        '0',
+        'approve',
+        'review_complete',
+        randomUUID(),
+      ]),
+    ).toEqual({ status: 'approved', version: '1' });
+    await expect(
+      call('sl_creator_access_set', [op, user, '0', 'suspend', 'abuse', randomUUID()]),
+    ).rejects.toThrow('VERSION_CONFLICT');
+    await expect(
+      call('sl_creator_access_set', [op, user, null, 'suspend', 'abuse', randomUUID()]),
+    ).rejects.toThrow('VERSION_CONFLICT');
+    expect((await call<{ id: string }>('sl_create_letter', [user, 'Approved'])).id).toBeTruthy();
+    await expect(call('sl_create_letter', [op, 'Operator is not a Creator'])).rejects.toThrow(
+      'CREATOR_NOT_APPROVED',
+    );
+  });
+  it('hold blocks recipient and publish, clear does not restore links, reapproval does not restore sessions', async () => {
+    const op = await operator(),
+      owner = await creator(),
+      id = await letter(owner);
+    const share = randomBytes(32).toString('base64url'),
+      digest = createHash('sha256').update(share).digest('base64'),
+      nonce = randomBytes(16).toString('base64'),
+      session = randomBytes(32).toString('base64');
+    await call('sl_save_letter', [
+      owner,
+      id,
+      '1',
+      {
+        recipientDisplayName: 'Reader',
+        bodyDoc: {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Private message' }] }],
+        },
+        gate: { nonce, digest: randomBytes(32).toString('base64') },
+      },
+    ]);
+    await call('sl_publish', [owner, id, '2', share, digest]);
+    await call('sl_session_issue', [digest, '3', nonce, session, null]);
+    expect((await call('sl_recipient_content', [digest, session])).letterId).toBe(id);
+    await call('sl_letter_moderate', [op, id, '0', 'hold', 'abuse', null, randomUUID()]);
+    const foreignCreator = await creator();
+    await expect(call('sl_share', [foreignCreator, id])).rejects.toThrow('NOT_FOUND');
+    await expect(call('sl_share', [owner, id])).rejects.toThrow('LETTER_HELD');
+    for (const [name, args] of [
+      ['sl_bootstrap', [digest]],
+      ['sl_verification_gate', [digest]],
+      ['sl_session_issue', [digest, '2', nonce, randomBytes(32).toString('base64'), null]],
+      ['sl_recipient_content', [digest, session]],
+      ['sl_recipient_photo', [digest, session, randomUUID()]],
+      ['sl_recipient_audio', [digest, session, randomUUID()]],
+    ] as const)
+      await expect(call(name, [...args])).rejects.toThrow('NOT_FOUND');
+    await expect(call('sl_publish', [owner, id, '4', share, digest])).rejects.toThrow(
+      'LETTER_HELD',
+    );
+    expect((await call('sl_gate_flags', [owner, id])).moderation).toEqual({
+      state: 'held',
+      version: '1',
+    });
+    await call('sl_save_letter', [owner, id, '4', { title: 'Remediate while held' }]);
+    await call('sl_letter_moderate', [op, id, '1', 'clear', 'review_complete', null, randomUUID()]);
+    await expect(call('sl_bootstrap', [digest])).rejects.toThrow('NOT_FOUND');
+    const newToken = randomBytes(32).toString('base64url'),
+      newDigest = createHash('sha256').update(newToken).digest('base64');
+    await call('sl_publish', [owner, id, '6', newToken, newDigest]);
+    await expect(call('sl_recipient_content', [newDigest, session])).rejects.toThrow(
+      'ACCESS_REQUIRED',
+    );
+    await call('sl_creator_access_set', [op, owner, '1', 'suspend', 'abuse', randomUUID()]);
+    await expect(call('sl_bootstrap', [newDigest])).rejects.toThrow('NOT_FOUND');
+    await asRole('authenticated', owner, async () =>
+      expect((await db.query('select * from public.letters where id=$1', [id])).rows).toHaveLength(
+        0,
+      ),
+    );
+    await expect(call('sl_gate_flags', [owner, id])).rejects.toThrow('CREATOR_NOT_APPROVED');
+    await call('sl_creator_access_set', [
+      op,
+      owner,
+      '2',
+      'approve',
+      'review_complete',
+      randomUUID(),
+    ]);
+    await expect(call('sl_bootstrap', [newDigest])).rejects.toThrow('NOT_FOUND');
+    await call('sl_session_close', [newDigest, session]);
+  });
+  it('revoked creators cannot finalize; failure cleanup and scoped operator deletion remain available', async () => {
+    const op = await operator(),
+      owner = await creator(),
+      id = await letter(owner),
+      aid = randomUUID(),
+      pid = randomUUID();
+    await call('sl_audio_reserve', [owner, id, '1', aid, 100, 1]);
+    await call('sl_photo_reserve', [
+      owner,
+      id,
+      '2',
+      pid,
+      { byteSize: 10, width: 1, height: 1, altText: 'Test' },
+    ]);
+    await call('sl_creator_access_set', [op, owner, '1', 'suspend', 'privacy', randomUUID()]);
+    await expect(call('sl_audio_finalize', [owner, id, aid, '2'])).rejects.toThrow(
+      'CREATOR_NOT_APPROVED',
+    );
+    await expect(call('sl_photo_finalize', [owner, id, pid, '3'])).rejects.toThrow(
+      'CREATOR_NOT_APPROVED',
+    );
+    await call('sl_audio_fail', [owner, id, aid]);
+    await call('sl_photo_fail', [owner, id, pid]);
+    const { rows } = await db.query<{ version: string }>(
+      'select version::text from public.letters where id=$1',
+      [id],
+    );
+    const result = await call('sl_operator_letter_delete', [
+      op,
+      id,
+      rows[0].version,
+      'CASE_TEST',
+      'deletion_request',
+      randomUUID(),
+    ]);
+    expect(result.deleted).toBe(true);
+    expect(result.mediaCleanup).toBe('pending');
+    expect(
+      (
+        await db.query<{ deleted_at: string | null }>(
+          'select deleted_at from public.letters where id=$1',
+          [id],
+        )
+      ).rows[0].deleted_at,
+    ).toBeTruthy();
+  });
+  it('unknown targets receive real report receipts; descriptions stay out of audit and foreign moderation fails', async () => {
+    const op = await operator(),
+      owner = await creator(),
+      id = await letter(owner),
+      digest = randomBytes(32).toString('base64');
+    const receipt = await call<{ reference: string }>('sl_report_submit', [
+      digest,
+      'privacy',
+      '<script>untrusted report text</script>',
+    ]);
+    expect(receipt.reference).toBeTruthy();
+    expect(
+      (await call('sl_report_get', [op, receipt.reference, randomUUID()])).description,
+    ).toContain('<script>');
+    await expect(
+      call('sl_letter_moderate', [op, id, '0', 'hold', 'abuse', receipt.reference, randomUUID()]),
+    ).rejects.toThrow('NOT_FOUND');
+    await call('sl_report_resolve', [
+      op,
+      receipt.reference,
+      '1',
+      'unresolved_target',
+      randomUUID(),
+    ]);
+    await expect(
+      call('sl_report_resolve', [op, receipt.reference, '1', 'dismissed', randomUUID()]),
+    ).rejects.toThrow('VERSION_CONFLICT');
+    expect(
+      JSON.stringify(
+        (
+          await db.query('select * from private.operator_audit where report_id=$1', [
+            receipt.reference,
+          ])
+        ).rows,
+      ),
+    ).not.toContain('untrusted report text');
+  });
+  it('audit failure rolls back approval and moderation; stale concurrent commands have one winner', async () => {
+    const op = await operator(),
+      owner = await creator(),
+      id = await letter(owner);
+    await db.exec(
+      "create function private.test_audit_fail() returns trigger language plpgsql as $$ begin raise exception 'AUDIT_DOWN'; end $$; create trigger test_audit_fail before insert on private.operator_audit for each row execute function private.test_audit_fail();",
+    );
+    try {
+      await expect(
+        call('sl_letter_moderate', [op, id, '0', 'hold', 'abuse', null, randomUUID()]),
+      ).rejects.toThrow('AUDIT_DOWN');
+      await expect(
+        call('sl_creator_access_set', [op, owner, '1', 'suspend', 'abuse', randomUUID()]),
+      ).rejects.toThrow('AUDIT_DOWN');
+    } finally {
+      await db.exec(
+        'drop trigger test_audit_fail on private.operator_audit; drop function private.test_audit_fail();',
+      );
+    }
+    expect(
+      (
+        await db.query<{ version: string }>(
+          'select version::text from public.letters where id=$1',
+          [id],
+        )
+      ).rows[0].version,
+    ).toBe('1');
+    const results = await Promise.allSettled([
+      call('sl_letter_moderate', [op, id, '0', 'hold', 'abuse', null, randomUUID()]),
+      call('sl_letter_moderate', [op, id, '0', 'hold', 'abuse', null, randomUUID()]),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+  });
+  it('suspension cancels staged ingests, queues private paths and denies stale ready attachment', async () => {
+    const op = await operator(),
+      owner = await creator(),
+      id = await letter(owner);
+    const ingest = await call<{ id: string }>('sl_ingest_begin', [
+      owner,
+      id,
+      '1',
+      100,
+      'a'.repeat(64),
+    ]);
+    await call('sl_creator_access_set', [op, owner, '1', 'suspend', 'abuse', randomUUID()]);
+    await expect(call('sl_ingest_commit_begin', [owner, id, ingest.id])).rejects.toThrow(
+      'CREATOR_NOT_APPROVED',
+    );
+    expect(
+      (await db.query('select id from private.audio_ingests where letter_id=$1', [id])).rows,
+    ).toHaveLength(0);
+    expect(
+      (await db.query('select id from public.letter_assets where letter_id=$1', [id])).rows,
+    ).toHaveLength(0);
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where letter_id=$1', [id])).rows
+        .length,
+    ).toBeGreaterThanOrEqual(2);
+    await call('sl_ingest_cancel', [owner, id, ingest.id]);
+  });
+  it('bounded pruning respects finite holds and keeps fresh open reports', async () => {
+    const r = await call<{ reference: string }>('sl_report_submit', [
+      randomBytes(32).toString('base64'),
+      'other',
+      '',
+    ]);
+    await db.query(
+      "update private.abuse_reports set purge_after=now()-interval '1 day',hold_until=now()+interval '1 day',hold_approved_by=$2 where id=$1",
+      [r.reference, randomUUID()],
+    );
+    await call('sl_report_prune', []);
+    expect(
+      (await db.query('select id from private.abuse_reports where id=$1', [r.reference])).rows,
+    ).toHaveLength(1);
+    await db.query('update private.abuse_reports set hold_until=null where id=$1', [r.reference]);
+    await call('sl_report_prune', []);
+    expect(
+      (await db.query('select id from private.abuse_reports where id=$1', [r.reference])).rows,
+    ).toHaveLength(0);
+  });
+});
 let preUpgradeLetter: { owner: string; id: string };
 async function call<T = Record<string, unknown>>(name: string, args: unknown[]): Promise<T> {
   const result = await db.query<{ value: T }>(
@@ -16,6 +365,10 @@ async function call<T = Record<string, unknown>>(name: string, args: unknown[]):
 async function creator() {
   const id = randomUUID();
   await db.query('insert into auth.users(id) values($1)', [id]);
+  if (approvalSchemaReady)
+    await db.query("insert into private.creator_access(user_id,status) values($1,'approved')", [
+      id,
+    ]);
   return id;
 }
 async function letter(owner: string) {
@@ -596,6 +949,18 @@ beforeAll(async () => {
   await db.exec(await readFile('supabase/migrations/202610140005_scene_text.sql', 'utf8'));
   await db.exec(await readFile('supabase/migrations/202610140006_particle_heart.sql', 'utf8'));
   await db.exec(await readFile('supabase/migrations/202610140007_recovery_single_use.sql', 'utf8'));
+  await db.exec(
+    await readFile('supabase/migrations/202610150008_private_audio_ingests.sql', 'utf8'),
+  );
+  await db.exec(
+    await readFile('supabase/migrations/202610160009_public_release_controls.sql', 'utf8'),
+  );
+  approvalSchemaReady = true;
+  // Explicitly approve only the two historical in-memory fixtures; migration grants nobody access.
+  await db.query(
+    "insert into private.creator_access(user_id,status) values($1,'approved'),($2,'approved')",
+    [owner, legacyOwner],
+  );
   expect(
     (
       await db.query('select presentation_config,version from public.letters where id=$1', [
@@ -611,6 +976,225 @@ beforeAll(async () => {
     ).rows[0].scene_text,
   ).toBeNull();
 });
+describe('private audio chunk ingests', () => {
+  const hash = 'a'.repeat(64),
+    otherHash = 'b'.repeat(64);
+  async function begin(owner: string, id: string, version = '1', size = 1048577) {
+    return call<{ id: string; assetId: string; partCount: number }>('sl_ingest_begin', [
+      owner,
+      id,
+      version,
+      size,
+      hash,
+    ]);
+  }
+  async function ready(owner: string, id: string, iid: string, index: number, size: number) {
+    await call('sl_ingest_part', [owner, id, iid, index, size, hash, false]);
+    await call('sl_ingest_part', [owner, id, iid, index, size, hash, true]);
+  }
+  it('reserves exact bounded immutable parts, binds owner/letter/version and rejects duplicate tracks', async () => {
+    const owner = await creator(),
+      other = await creator(),
+      id = await letter(owner);
+    await expect(begin(other, id)).rejects.toThrow('NOT_FOUND');
+    await expect(begin(owner, id, '1', 16777217)).rejects.toThrow('INVALID_AUDIO');
+    const i = await begin(owner, id);
+    expect(i.partCount).toBe(2);
+    await expect(begin(owner, id, '2')).rejects.toThrow('UPLOAD_PENDING');
+    await expect(call('sl_audio_reserve', [owner, id, '2', randomUUID(), 100, 1])).rejects.toThrow(
+      'UPLOAD_PENDING',
+    );
+    await expect(
+      call('sl_ingest_part', [other, id, i.id, 0, 1048576, hash, false]),
+    ).rejects.toThrow('NOT_FOUND');
+    await expect(call('sl_ingest_part', [owner, id, i.id, 0, 1, hash, false])).rejects.toThrow(
+      'INVALID_AUDIO',
+    );
+    await call('sl_ingest_part', [owner, id, i.id, 0, 1048576, hash, false]);
+    await expect(
+      call('sl_ingest_part', [owner, id, i.id, 0, 1048576, otherHash, false]),
+    ).rejects.toThrow('INVALID_AUDIO');
+    await ready(owner, id, i.id, 0, 1048576);
+    expect(
+      (await call<{ ready: boolean }>('sl_ingest_part', [owner, id, i.id, 0, 1048576, hash, false]))
+        .ready,
+    ).toBe(true);
+    await expect(call('sl_ingest_commit_begin', [owner, id, i.id])).rejects.toThrow(
+      'UPLOAD_PENDING',
+    );
+    await call('sl_save_letter', [owner, id, '2', { title: 'Concurrent edit' }]);
+    await expect(call('sl_ingest_part', [owner, id, i.id, 1, 1, hash, false])).rejects.toThrow(
+      'VERSION_CONFLICT',
+    );
+    await call('sl_ingest_cancel', [owner, id, i.id]);
+    expect(await call('sl_ingest_flags', [owner, id])).toBeNull();
+  });
+  it('finalizes only sealed manifests/current lease, preserves customization and queues only raw staging on success', async () => {
+    const owner = await creator(),
+      id = await letter(owner);
+    await call('sl_save_letter', [owner, id, '1', { heartCustomization: DEFAULT_HEART }]);
+    const i = await begin(owner, id, '2', 100);
+    await ready(owner, id, i.id, 0, 100);
+    const commit = await call<{ lease: string }>('sl_ingest_commit_begin', [owner, id, i.id]);
+    await expect(call('sl_ingest_commit_begin', [owner, id, i.id])).rejects.toThrow(
+      'UPLOAD_PENDING',
+    );
+    await expect(
+      call('sl_ingest_commit_finish', [owner, id, i.id, randomUUID(), 90, 1]),
+    ).rejects.toThrow('UPLOAD_PENDING');
+    await call('sl_ingest_commit_finish', [owner, id, i.id, commit.lease, 90, 1]);
+    const row = (
+      await db.query<{
+        presentation_config: {
+          heartCustomization: unknown;
+          music: { enabled: boolean; assetId: string };
+        };
+        version: string;
+      }>('select presentation_config,version::text from public.letters where id=$1', [id])
+    ).rows[0];
+    expect(row.version).toBe('4');
+    expect(row.presentation_config.heartCustomization).toEqual(DEFAULT_HEART);
+    expect(row.presentation_config.music.enabled).toBe(false);
+    expect(row.presentation_config.music.assetId).toBe(i.assetId);
+    const jobs = (
+      await db.query<{ bucket_id: string }>(
+        'select bucket_id from private.media_cleanup_jobs where letter_id=$1',
+        [id],
+      )
+    ).rows;
+    expect(jobs).toEqual([{ bucket_id: 'letter-audio-staging' }]);
+    await call('sl_ingest_cancel', [owner, id, i.id]);
+    await call('sl_audio_fail', [owner, id, i.assetId]);
+    expect(
+      (await db.query('select id from public.letter_assets where id=$1', [i.assetId])).rows,
+    ).toHaveLength(1);
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where letter_id=$1', [id])).rows,
+    ).toHaveLength(1);
+  });
+  it('denies published ingests, blocks publication while pending and cancels/queues on letter deletion', async () => {
+    const owner = await creator(),
+      id = await letter(owner);
+    await call('sl_save_letter', [
+      owner,
+      id,
+      '1',
+      {
+        recipientDisplayName: 'Synthetic',
+        bodyDoc: {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Private' }] }],
+        },
+        gate: {
+          nonce: randomBytes(16).toString('base64'),
+          digest: randomBytes(32).toString('base64'),
+        },
+      },
+    ]);
+    const i = await begin(owner, id, '2', 100);
+    await expect(
+      call('sl_publish', [
+        owner,
+        id,
+        '3',
+        randomBytes(32).toString('base64url'),
+        randomBytes(32).toString('base64'),
+      ]),
+    ).rejects.toThrow('UPLOAD_PENDING');
+    await call('sl_delete_letter', [owner, id, '3']);
+    expect(
+      (await db.query('select id from private.audio_ingests where id=$1', [i.id])).rows,
+    ).toHaveLength(0);
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where letter_id=$1', [id])).rows,
+    ).toHaveLength(2);
+    await expect(call('sl_ingest_commit_begin', [owner, id, i.id])).rejects.toThrow('NOT_FOUND');
+  });
+  it('reserves transient raw/final bytes and queued backlog in the existing creator budget', async () => {
+    const owner = await creator(),
+      a = await letter(owner),
+      b = await letter(owner);
+    const i = await begin(owner, a, '1', 16777216);
+    expect(i.partCount).toBe(16);
+    await expect(begin(owner, b, '1', 16777216)).rejects.toThrow('ASSET_QUOTA');
+    await call('sl_ingest_cancel', [owner, a, i.id]);
+    await expect(begin(owner, b, '1', 16777216)).rejects.toThrow('ASSET_QUOTA');
+    const bytes = (
+      await db.query<{ total: string }>(
+        'select sum(byte_size)::text as total from private.media_cleanup_jobs where letter_id=$1',
+        [a],
+      )
+    ).rows[0].total;
+    expect(bytes).toBe('33554432');
+  });
+  it('expires abandoned ingests without allowing stale/foreign commit and protects live part orphan scans', async () => {
+    const owner = await creator(),
+      id = await letter(owner),
+      i = await begin(owner, id, '1', 100);
+    const path = (
+      await db.query<{ object_path: string }>(
+        'select object_path from private.audio_ingest_parts where ingest_id=$1',
+        [i.id],
+      )
+    ).rows[0].object_path;
+    await call('sl_staging_orphan', [path]);
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where object_path=$1', [path]))
+        .rows,
+    ).toHaveLength(0);
+    await db.query(
+      "update private.audio_ingests set expires_at=now()-interval '1 second' where id=$1",
+      [i.id],
+    );
+    await expect(call('sl_ingest_commit_begin', [owner, id, i.id])).rejects.toThrow(
+      'UPLOAD_EXPIRED',
+    );
+    expect(await call('sl_ingest_stale', [])).toBe(1);
+    expect(await call('sl_ingest_flags', [owner, id])).toBeNull();
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where object_path=$1', [path]))
+        .rows,
+    ).toHaveLength(1);
+  });
+  it('denies browser staging despite broad policies and keeps legacy workers away from staging leases', async () => {
+    const owner = await creator(),
+      id = await letter(owner),
+      i = await begin(owner, id, '1', 100);
+    await asRole('authenticated', owner, async () => {
+      await expect(call('sl_ingest_flags', [owner, id])).rejects.toThrow('permission denied');
+      await expect(db.query('select * from private.audio_ingests')).rejects.toThrow(
+        'permission denied',
+      );
+      await expect(
+        db.query(
+          "insert into storage.objects(bucket_id,name) values('letter-audio-staging','bad')",
+        ),
+      ).rejects.toThrow('row-level security');
+    });
+    await call('sl_ingest_cancel', [owner, id, i.id]);
+    await db.query(
+      "update private.media_cleanup_jobs set available_at=now()-interval '1 hour' where letter_id=$1",
+      [id],
+    );
+    const old = await call<{ bucket: string }[]>('sl_cleanup_claim_v2', []);
+    expect(old.every((job) => job.bucket !== 'letter-audio-staging')).toBe(true);
+    const jobs = await call<{ id: string; bucket: string; path: string; leaseToken: string }[]>(
+      'sl_cleanup_claim_v3',
+      [],
+    );
+    const job = jobs.find((job) => job.bucket === 'letter-audio-staging' && job.path.includes(id))!;
+    expect(job).toBeDefined();
+    await call('sl_cleanup_complete_v2', [job.id, job.bucket, job.path, job.leaseToken, true]);
+    await call('sl_cleanup_complete_v3', [job.id, job.bucket, 'wrong', job.leaseToken, true]);
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where id=$1', [job.id])).rows,
+    ).toHaveLength(1);
+    await call('sl_cleanup_complete_v3', [job.id, job.bucket, job.path, job.leaseToken, true]);
+    expect(
+      (await db.query('select id from private.media_cleanup_jobs where id=$1', [job.id])).rows,
+    ).toHaveLength(0);
+  });
+});
 describe('single-use password recovery', () => {
   it('audits every application RPC grant/search path and every application table RLS flag', async () => {
     const functions = await db.query<{ safe: boolean }>(`
@@ -620,7 +1204,7 @@ describe('single-use password recovery', () => {
         and not p.prosecdef
         and p.proconfig @> array['search_path=""'] as safe
       from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace
-      where n.nspname='private' or (n.nspname='public' and p.proname like 'sl\\_%' escape '\\')
+      where n.nspname='private' or (n.nspname='public' and p.proname <> 'sl_creator_is_active' and p.proname like 'sl\\_%' escape '\\')
     `);
     expect(functions.rows.length).toBeGreaterThan(30);
     expect(functions.rows.every((row) => row.safe === true)).toBe(true);
@@ -630,7 +1214,7 @@ describe('single-use password recovery', () => {
       where c.relkind='r' and (n.nspname='private' or
         (n.nspname='public' and c.relname in ('letters','letter_photos','letter_assets')))
     `);
-    expect(tables.rows).toHaveLength(10);
+    expect(tables.rows).toHaveLength(17);
     expect(tables.rows.every((row) => row.safe === true)).toBe(true);
   });
   it('atomically consumes a proof once, denies replay across callers and rejects invalid expiry', async () => {
@@ -983,6 +1567,7 @@ describe('actual PostgreSQL migration and access rules', () => {
       ]),
     ).rejects.toThrow('VERIFICATION_REQUIRED');
     expect(await call('sl_gate_flags', [a, id])).toEqual({
+      moderation: { state: 'clear', version: '0' },
       verificationConfigured: false,
       passphraseRequired: false,
     });
@@ -1001,6 +1586,7 @@ describe('actual PostgreSQL migration and access rules', () => {
     expect(await call('sl_gate_flags', [a, id])).toEqual({
       verificationConfigured: true,
       passphraseRequired: true,
+      moderation: { state: 'clear', version: '0' },
     });
   });
   it('commits upload-conflict cleanup while preserving a concurrent Save', async () => {

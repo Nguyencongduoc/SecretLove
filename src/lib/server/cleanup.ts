@@ -9,7 +9,7 @@ const cursorSchema = z
   .max(100);
 type Job = {
   id: string;
-  bucket: 'letter-media' | 'letter-assets';
+  bucket: 'letter-media' | 'letter-assets' | 'letter-audio-staging';
   path: string;
   leaseToken: string;
 };
@@ -18,15 +18,17 @@ export async function cleanupMedia() {
   const deadline = Date.now() + 40000;
   const stale = await rpc<number>('sl_cleanup_stale');
   await rpc<number>('sl_recovery_prune');
+  await rpc<number>('sl_report_prune');
+  await rpc<number>('sl_ingest_stale');
   let completed = 0;
   let failed = 0;
-  const jobs = await rpc<Job[]>('sl_cleanup_claim_v2');
+  const jobs = await rpc<Job[]>('sl_cleanup_claim_v3');
   for (const job of jobs) {
     if (Date.now() >= deadline) break;
-    if (!['letter-media', 'letter-assets'].includes(job.bucket))
+    if (!['letter-media', 'letter-assets', 'letter-audio-staging'].includes(job.bucket))
       throw new AppError(503, 'CLEANUP_INVALID_BUCKET', 'Cleanup could not finish.');
     const { error } = await serviceClient().storage.from(job.bucket).remove([job.path]);
-    await rpc('sl_cleanup_complete_v2', {
+    await rpc('sl_cleanup_complete_v3', {
       jid: job.id,
       bucket_input: job.bucket,
       path_input: job.path,
@@ -38,10 +40,16 @@ export async function cleanupMedia() {
   }
   let scanned = 0;
   let scanComplete = true;
-  for (const bucket of ['letter-media', 'letter-assets'] as const) {
+  for (const bucket of ['letter-media', 'letter-assets', 'letter-audio-staging'] as const) {
     const storage = serviceClient().storage.from(bucket);
-    const stateRpc = bucket === 'letter-media' ? 'sl_maintenance_state' : 'sl_audio_scan_state';
-    const extension = bucket === 'letter-media' ? '.webp' : '.mp3';
+    const stateRpc =
+      bucket === 'letter-media'
+        ? 'sl_maintenance_state'
+        : bucket === 'letter-assets'
+          ? 'sl_audio_scan_state'
+          : 'sl_staging_scan_state';
+    const extension =
+      bucket === 'letter-media' ? '.webp' : bucket === 'letter-assets' ? '.mp3' : '.part';
     const stored = await rpc<unknown>(stateRpc);
     const parsed = cursorSchema.safeParse(stored);
     const frames = parsed.success && parsed.data.length ? parsed.data : [{ prefix: '', offset: 0 }];
@@ -80,9 +88,16 @@ export async function cleanupMedia() {
             Number.isFinite(updated) &&
             Math.max(created, updated) < Date.now() - 3600000
           )
-            await rpc(bucket === 'letter-media' ? 'sl_enqueue_orphan' : 'sl_audio_orphan', {
-              path_input: prefix,
-            });
+            await rpc(
+              bucket === 'letter-media'
+                ? 'sl_enqueue_orphan'
+                : bucket === 'letter-assets'
+                  ? 'sl_audio_orphan'
+                  : 'sl_staging_orphan',
+              {
+                path_input: prefix,
+              },
+            );
         }
       }
     }
